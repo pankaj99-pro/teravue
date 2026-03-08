@@ -145,6 +145,7 @@ export default function Index() {
                   isActive={activeStop === item.id}
                   onClick={() => setActiveStop(item.id)}
                   index={i}
+                  isLast={i === currentItems.length - 1}
                 />
               ))}
             </motion.div>
