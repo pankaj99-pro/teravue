@@ -82,14 +82,16 @@ serve(async (req) => {
       });
     }
 
-    // Fetch existing memory for this trip
+    // Fetch existing memory for this trip (including memory_key for dedup)
     const { data: memories } = await supabase
       .from("agent_memory")
-      .select("memory_type, content, created_at")
+      .select("memory_type, memory_key, content, created_at")
       .eq("trip_id", trip_id)
       .order("created_at");
 
-    const memoryContext = (memories || []).map(m => `[${m.memory_type}]: ${JSON.stringify(m.content)}`).join("\n");
+    const memoryTypes = (memories || []).map(m => m.memory_type);
+    const memoryKeys = (memories || []).filter(m => m.memory_key).map(m => m.memory_key);
+    const memoryContext = (memories || []).map(m => `[${m.memory_type}${m.memory_key ? ` (key: ${m.memory_key})` : ""}]: ${JSON.stringify(m.content)}`).join("\n");
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -109,12 +111,16 @@ ${memoryContext || "No data collected yet."}
 Additional context: ${current_context || "Starting fresh."}
 
 Rules:
-1. If no flights found yet, search flights first.
-2. If no hotels found, search hotels next.
-3. If no restaurants found, search restaurants.
-4. If flights, hotels, and restaurants are all found, build the itinerary.
-5. If itinerary is already built, return "done".
-6. Include relevant parameters for whichever search you choose.`;
+1. Check existing memory before searching — do NOT repeat searches that already have results.
+2. Already collected data types: ${memoryTypes.join(", ") || "none"}
+3. Already used memory keys: ${memoryKeys.join(", ") || "none"}
+4. If flights data exists (flights_found), skip flight search.
+5. If hotels data exists (hotels_found), skip hotel search.
+6. If restaurants data exists (restaurants_found), skip restaurant search.
+7. If attractions data exists (attractions_found), skip attraction search.
+8. If all search data is collected, build the itinerary.
+9. If itinerary_draft exists, return "done".
+10. Include relevant parameters for whichever search you choose.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

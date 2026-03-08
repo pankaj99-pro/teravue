@@ -41,3 +41,15 @@ verify_jwt = false
 
 [functions.trip-monitor]
 verify_jwt = false
+
+[functions.get-agent-logs]
+verify_jwt = false
+
+[functions.optimize-trip-routes]
+verify_jwt = false
+
+[functions.update-itinerary-with-ai]
+verify_jwt = false
+
+[functions.get-trip-agent-status]
+verify_jwt = false

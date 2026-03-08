@@ -67,11 +67,54 @@ export type Database = {
           },
         ]
       }
+      agent_logs: {
+        Row: {
+          agent_run_id: string | null
+          created_at: string
+          id: string
+          message: string
+          step_type: string
+          trip_id: string
+        }
+        Insert: {
+          agent_run_id?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          step_type: string
+          trip_id: string
+        }
+        Update: {
+          agent_run_id?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          step_type?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_logs_agent_run_id_fkey"
+            columns: ["agent_run_id"]
+            isOneToOne: false
+            referencedRelation: "agent_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_logs_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_memory: {
         Row: {
           content: Json
           created_at: string
           id: string
+          memory_key: string | null
           memory_type: string
           trip_id: string | null
           user_id: string
@@ -80,6 +123,7 @@ export type Database = {
           content?: Json
           created_at?: string
           id?: string
+          memory_key?: string | null
           memory_type: string
           trip_id?: string | null
           user_id: string
@@ -88,6 +132,7 @@ export type Database = {
           content?: Json
           created_at?: string
           id?: string
+          memory_key?: string | null
           memory_type?: string
           trip_id?: string | null
           user_id?: string
@@ -214,6 +259,38 @@ export type Database = {
           id?: string
         }
         Relationships: []
+      }
+      itinerary_versions: {
+        Row: {
+          created_at: string
+          id: string
+          itinerary_data: Json
+          trip_id: string
+          version_number: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          itinerary_data?: Json
+          trip_id: string
+          version_number?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          itinerary_data?: Json
+          trip_id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itinerary_versions_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -399,6 +476,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "trip_days_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_routes: {
+        Row: {
+          created_at: string
+          distance_km: number | null
+          end_location: string
+          id: string
+          route_geometry: Json | null
+          start_location: string
+          travel_time_minutes: number | null
+          trip_id: string
+        }
+        Insert: {
+          created_at?: string
+          distance_km?: number | null
+          end_location: string
+          id?: string
+          route_geometry?: Json | null
+          start_location: string
+          travel_time_minutes?: number | null
+          trip_id: string
+        }
+        Update: {
+          created_at?: string
+          distance_km?: number | null
+          end_location?: string
+          id?: string
+          route_geometry?: Json | null
+          start_location?: string
+          travel_time_minutes?: number | null
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_routes_trip_id_fkey"
             columns: ["trip_id"]
             isOneToOne: false
             referencedRelation: "trips"
