@@ -82,6 +82,14 @@
   .card-hover {
     @apply transition-all duration-300 hover:bg-accent/80 hover:border-primary/30;
   }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* Leaflet dark popup overrides */
