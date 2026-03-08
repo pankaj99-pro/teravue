@@ -40,9 +40,42 @@ interface MapPanelProps {
   onModeChange: (mode: TransportMode) => void;
 }
 
-const defaultStops: MapStop[] = [];
+const defaultStops: MapStop[] = [
+  { id: 1, label: "Fiumicino Airport", lat: 41.8003, lng: 12.2389, img: airportImg },
+  { id: 2, label: "Albergo Roma", lat: 41.8967, lng: 12.4822, img: hotelImg },
+  { id: 3, label: "Trattoria da Enzo", lat: 41.8893, lng: 12.4692, img: restaurantImg },
+  { id: 4, label: "Colosseum", lat: 41.8902, lng: 12.4922, img: colosseumImg },
+];
 
-const defaultSegments: RouteSegment[] = [];
+const defaultSegments: RouteSegment[] = [
+  {
+    from: "Fiumicino Airport", to: "Albergo Roma",
+    modes: [
+      { transport_mode: "car", distance_km: 32, duration_minutes: 40 },
+      { transport_mode: "train", distance_km: 35, duration_minutes: 35 },
+      { transport_mode: "bike", distance_km: 30, duration_minutes: 95 },
+      { transport_mode: "walk", distance_km: 29, duration_minutes: 360 },
+    ],
+  },
+  {
+    from: "Albergo Roma", to: "Trattoria da Enzo",
+    modes: [
+      { transport_mode: "car", distance_km: 2.5, duration_minutes: 8 },
+      { transport_mode: "bike", distance_km: 2.8, duration_minutes: 10 },
+      { transport_mode: "walk", distance_km: 2.3, duration_minutes: 28 },
+      { transport_mode: "train", distance_km: 3.1, duration_minutes: 12 },
+    ],
+  },
+  {
+    from: "Trattoria da Enzo", to: "Colosseum",
+    modes: [
+      { transport_mode: "car", distance_km: 3.2, duration_minutes: 10 },
+      { transport_mode: "bike", distance_km: 3.5, duration_minutes: 12 },
+      { transport_mode: "walk", distance_km: 2.9, duration_minutes: 35 },
+      { transport_mode: "train", distance_km: 4, duration_minutes: 15 },
+    ],
+  },
+];
 
 const modeConfig: Record<TransportMode, { icon: typeof Car; label: string; color: string; description: string }> = {
   car: { icon: Car, label: "Car", color: "hsl(210,100%,60%)", description: "Fastest by road. Includes taxi and rideshare options." },
