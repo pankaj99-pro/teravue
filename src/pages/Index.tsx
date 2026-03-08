@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { TripHeader } from "@/components/TripHeader";
-import { ItineraryCard, ItineraryItem } from "@/components/ItineraryCard";
-import { MapPanel, TransportMode } from "@/components/MapPanel";
+import { ItineraryCard, ItineraryItem, TravelSegment } from "@/components/ItineraryCard";
+import { MapPanel, TransportMode, RouteSegment } from "@/components/MapPanel";
 import { useItinerary } from "@/contexts/ItineraryContext";
+import { supabase } from "@/integrations/supabase/client";
 
 import airportImg from "@/assets/airport.jpg";
 import hotelImg from "@/assets/hotel.jpg";
