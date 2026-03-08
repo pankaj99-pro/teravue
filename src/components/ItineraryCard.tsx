@@ -150,7 +150,7 @@ export function ItineraryCard({ item, isActive, onClick, index, isLast, travelSe
       {/* Travel segment between stops */}
       {travelSegment && modeData && (
         <motion.div
-          className="flex items-stretch gap-3 py-1"
+          className="flex items-stretch gap-3 py-1.5"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: index * 0.1 + 0.2 }}
@@ -158,14 +158,16 @@ export function ItineraryCard({ item, isActive, onClick, index, isLast, travelSe
           <div className="flex flex-col items-center flex-shrink-0">
             <div className="w-0.5 flex-1 bg-border opacity-40" style={{ minHeight: 8 }} />
           </div>
-          <div className="flex-1 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/20 border border-border/30">
-            <TravelIcon className={`w-3.5 h-3.5 flex-shrink-0 ${modeColors[selectedMode]}`} />
-            <ArrowDown className="w-2.5 h-2.5 text-muted-foreground flex-shrink-0" />
-            <span className="text-[10px] md:text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">{formatDuration(modeData.duration_minutes)}</span>
-              {" · "}
-              {modeData.distance_km.toFixed(1)} km
-            </span>
+          <div className="flex-1 flex items-center gap-3 px-4 py-2.5 rounded-xl bg-muted/40 border border-border/50">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary/10 flex-shrink-0">
+              <TravelIcon className={`w-4 h-4 ${modeColors[selectedMode]}`} />
+            </div>
+            <ArrowDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+            <div className="flex items-center gap-2 text-xs md:text-sm">
+              <span className="font-semibold text-foreground">{formatDuration(modeData.duration_minutes)}</span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground font-medium">{modeData.distance_km.toFixed(1)} km</span>
+            </div>
           </div>
         </motion.div>
       )}
