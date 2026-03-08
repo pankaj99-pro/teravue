@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Car, Bike, Train, Plane, Footprints, Zap } from "lucide-react";
+import { toast } from "sonner";
 import airportImg from "@/assets/airport.jpg";
 import hotelImg from "@/assets/hotel.jpg";
 import restaurantImg from "@/assets/restaurant.jpg";
@@ -23,11 +24,11 @@ const stops = [
 const routeCoords: [number, number][] = stops.map((s) => [s.lat, s.lng]);
 
 const transportModes = [
-  { icon: Footprints, label: "Walk" },
-  { icon: Bike, label: "Bike" },
-  { icon: Car, label: "Car", active: true },
-  { icon: Train, label: "Train" },
-  { icon: Plane, label: "Plane" },
+  { icon: Footprints, label: "Walk", time: "2h 10m" },
+  { icon: Bike, label: "Bike", time: "55 min" },
+  { icon: Car, label: "Car", active: true, time: "40 min" },
+  { icon: Train, label: "Train", time: "35 min" },
+  { icon: Plane, label: "Plane", time: "N/A" },
 ];
 
 function createNumberedIcon(id: number, isActive: boolean) {
@@ -60,6 +61,14 @@ function FlyToActive({ activeStop }: { activeStop: number }) {
 }
 
 export function MapPanel({ activeStop }: MapPanelProps) {
+  const handleTransportSelect = (label: string, time: string) => {
+    toast.success(`${label} selected — estimated ${time}`);
+  };
+
+  const handleBookTaxi = () => {
+    toast.success("Taxi booking initiated! 🚕");
+  };
+
   return (
     <div className="relative w-full h-full overflow-hidden bg-background">
       <MapContainer
@@ -118,7 +127,10 @@ export function MapPanel({ activeStop }: MapPanelProps) {
             Moderate traffic — taxi is the fastest way to reach your hotel now.
           </p>
         </div>
-        <button className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+        <button
+          onClick={handleBookTaxi}
+          className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors active:scale-95 transform duration-150"
+        >
           Book a Taxi
         </button>
       </div>
@@ -128,7 +140,8 @@ export function MapPanel({ activeStop }: MapPanelProps) {
         {transportModes.map((mode) => (
           <button
             key={mode.label}
-            className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${
+            onClick={() => handleTransportSelect(mode.label, mode.time)}
+            className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 active:scale-90 ${
               mode.active
                 ? "bg-primary text-primary-foreground"
                 : "glass-panel text-muted-foreground hover:text-foreground hover:bg-accent"

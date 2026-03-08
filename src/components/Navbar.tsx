@@ -1,4 +1,5 @@
 import { Bell, ChevronDown, Compass, MessageSquare, Map, BookOpen, Users } from "lucide-react";
+import { toast } from "sonner";
 
 const navLinks = [
   { label: "AI Chat", icon: MessageSquare },
@@ -9,6 +10,10 @@ const navLinks = [
 ];
 
 export function Navbar() {
+  const handleNavClick = (label: string) => {
+    toast.info(`${label} — coming soon!`);
+  };
+
   return (
     <nav className="glass-navbar fixed top-0 left-0 right-0 z-50 h-16 flex items-center px-6">
       <div className="flex items-center gap-2 mr-8">
@@ -22,6 +27,7 @@ export function Navbar() {
         {navLinks.map((link) => (
           <button
             key={link.label}
+            onClick={() => handleNavClick(link.label)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
               link.active
                 ? "bg-primary/15 text-primary border border-primary/30"
@@ -35,12 +41,18 @@ export function Navbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-4">
-        <button className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+        <button
+          onClick={() => toast.info("No new notifications")}
+          className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+        >
           <Bell className="w-5 h-5" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />
         </button>
 
-        <button className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full hover:bg-accent transition-colors">
+        <button
+          onClick={() => toast.info("Profile settings — coming soon!")}
+          className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full hover:bg-accent transition-colors"
+        >
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-sm font-semibold text-primary-foreground">
             CS
           </div>

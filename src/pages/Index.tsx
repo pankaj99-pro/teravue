@@ -58,7 +58,7 @@ export default function Index() {
   const [viewMode, setViewMode] = useState<"itinerary" | "map">("itinerary");
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen flex flex-col overflow-hidden bg-background">
       <Navbar />
 
       {/* Mobile tabs */}
@@ -79,21 +79,23 @@ export default function Index() {
       </div>
 
       {/* Main content */}
-      <div className="pt-16 md:pt-16 flex flex-col md:flex-row h-[calc(100vh-4rem)]">
+      <div className="flex-1 pt-16 flex flex-col md:flex-row overflow-hidden">
         {/* Left: Itinerary */}
         <div
-          className={`w-full md:w-[42%] lg:w-[38%] border-r border-border overflow-y-auto ${
-            viewMode === "map" ? "hidden md:block" : ""
+          className={`w-full md:w-[42%] lg:w-[38%] border-r border-border flex flex-col overflow-hidden ${
+            viewMode === "map" ? "hidden md:flex" : "flex"
           }`}
           style={{ marginTop: viewMode === "itinerary" ? "2.75rem" : 0 }}
         >
-          <div className="md:mt-0" style={{ marginTop: 0 }}>
+          <div className="flex-shrink-0">
             <TripHeader selectedDay={selectedDay} onDayChange={setSelectedDay} />
+          </div>
 
+          <div className="flex-1 overflow-y-auto scrollbar-hide">
             <AnimatePresence mode="wait">
               <motion.div
                 key={selectedDay}
-                className="px-6 pb-8 space-y-1"
+                className="px-4 md:px-6 pb-4 space-y-0.5"
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -16 }}
