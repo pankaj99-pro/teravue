@@ -61,6 +61,7 @@ export default function AiChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { setTripPlan } = useItinerary();
+  const { user } = useAuth();
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const messages = activeSession?.messages || [];
