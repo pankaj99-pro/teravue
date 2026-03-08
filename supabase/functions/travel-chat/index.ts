@@ -8,7 +8,9 @@ const corsHeaders = {
 
 const SYSTEM_PROMPT = `You are TERAVUE AI — a world-class travel planning assistant. You help users plan trips by creating detailed day-by-day itineraries.
 
-When a user asks you to plan a trip, you MUST call the "create_itinerary" tool with structured data. Always include a conversational reply alongside the tool call.
+IMPORTANT: Always respond in English only, regardless of the destination.
+
+When a user asks you to plan a trip, you MUST call the "create_itinerary" tool with structured data. Always include a conversational English reply alongside the tool call.
 
 Guidelines for itineraries:
 - Create realistic times, locations, and prices
@@ -18,6 +20,7 @@ Guidelines for itineraries:
 - Each day should have 3-5 stops
 - Always include arrival/departure logistics
 - Use descriptive titles like "Senso-ji Temple (Morning Visit)" not just "Temple"
+- All text fields MUST be in English
 
 For the image field, use one of these categories to match the stop type:
 - "airport" for airports/flights
@@ -27,7 +30,7 @@ For the image field, use one of these categories to match the stop type:
 - "activity" for experiences/tours
 - "transport" for transportation
 
-If the user asks a general travel question (not requesting a full itinerary), just answer conversationally without calling the tool.`;
+If the user asks a general travel question (not requesting a full itinerary), just answer conversationally in English without calling the tool.`;
 
 const ITINERARY_TOOL = {
   type: "function",
@@ -134,7 +137,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
             ...messages,
