@@ -108,8 +108,7 @@ export default function Index() {
                   />
                 ))}
               </motion.div>
-            </AnimatePresence>
-          </div>
+          </AnimatePresence>
         </div>
 
         {/* Right: Map */}
