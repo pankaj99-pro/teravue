@@ -14,11 +14,14 @@ import {
   User,
   Loader2,
   Map,
+  Wand2,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { ChatSidebar, ChatSession } from "@/components/ChatSidebar";
+import { AgentActivityPanel } from "@/components/AgentActivityPanel";
 import { useItinerary } from "@/contexts/ItineraryContext";
 import { streamTravelChat, ChatMessage } from "@/lib/streamChat";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface UIMessage {
@@ -51,6 +54,8 @@ export default function AiChat() {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [agentRunning, setAgentRunning] = useState(false);
+  const [agentTripId, setAgentTripId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { setTripPlan } = useItinerary();
@@ -219,7 +224,8 @@ export default function AiChat() {
         </div>
 
         {/* Chat area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto scrollbar-hide">
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center px-4">
@@ -387,6 +393,22 @@ export default function AiChat() {
               </p>
             </div>
           </div>
+          </div>
+
+          {/* Right panel: Agent Activity */}
+          <AnimatePresence>
+            {(agentRunning || agentTripId) && (
+              <motion.div
+                className="hidden lg:block w-72 border-l border-border overflow-y-auto scrollbar-hide p-3"
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 288, opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <AgentActivityPanel tripId={agentTripId} isRunning={agentRunning} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
