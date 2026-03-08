@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Bell, ChevronDown, Compass, MessageSquare, Map, BookOpen, Users } from "lucide-react";
+import { Bell, ChevronDown, Compass, MessageSquare, Map, BookOpen, Users, History } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ const navLinks = [
   { label: "AI Chat", icon: MessageSquare, path: "/chat" },
   { label: "Explore", icon: Compass, path: "/explore" },
   { label: "Itinerary", icon: Map, path: "/" },
+  { label: "My Trips", icon: History, path: "/trips" },
   { label: "Blog", icon: BookOpen, path: "/blog" },
   { label: "Community", icon: Users, path: "/community" },
 ];

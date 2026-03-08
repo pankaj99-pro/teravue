@@ -20,7 +20,9 @@ import { Navbar } from "@/components/Navbar";
 import { ChatSidebar, ChatSession } from "@/components/ChatSidebar";
 import { AgentActivityPanel } from "@/components/AgentActivityPanel";
 import { useItinerary } from "@/contexts/ItineraryContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { streamTravelChat, ChatMessage } from "@/lib/streamChat";
+import { saveTripToDatabase } from "@/lib/tripStorage";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -59,6 +61,7 @@ export default function AiChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { setTripPlan } = useItinerary();
+  const { user } = useAuth();
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const messages = activeSession?.messages || [];
@@ -154,10 +157,23 @@ export default function AiChat() {
     try {
       await streamTravelChat(history, {
         onDelta: (chunk) => upsertAssistant(chunk),
-        onToolCall: (name, args) => {
+        onToolCall: async (name, args) => {
           if (name === "create_itinerary") {
+            // Save to database if user is authenticated
+            let savedTripId: string | undefined;
+            if (user) {
+              const tripId = await saveTripToDatabase(args, user.id);
+              if (tripId) {
+                savedTripId = tripId;
+                args.tripId = tripId;
+              }
+            }
+
             setTripPlan(args);
-            toast.success("✨ Itinerary generated! View it on the Itinerary page.");
+            toast.success(savedTripId
+              ? "✨ Itinerary generated and saved! View it on the Itinerary page."
+              : "✨ Itinerary generated! Sign in to save your trips."
+            );
             // Mark session and message
             setSessions((prev) =>
               prev.map((s) =>
