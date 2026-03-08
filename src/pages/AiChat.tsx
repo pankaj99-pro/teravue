@@ -14,11 +14,14 @@ import {
   User,
   Loader2,
   Map,
+  Wand2,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { ChatSidebar, ChatSession } from "@/components/ChatSidebar";
+import { AgentActivityPanel } from "@/components/AgentActivityPanel";
 import { useItinerary } from "@/contexts/ItineraryContext";
 import { streamTravelChat, ChatMessage } from "@/lib/streamChat";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface UIMessage {
