@@ -5,7 +5,7 @@ export type ChatMessage = { role: "user" | "assistant"; content: string };
 interface StreamCallbacks {
   onDelta: (text: string) => void;
   onToolCallStart?: (name: string) => void;
-  onToolCall: (name: string, args: any) => void;
+  onToolCall: (name: string, args: any) => Promise<void> | void;
   onDone: () => void;
   onError: (error: string) => void;
 }
