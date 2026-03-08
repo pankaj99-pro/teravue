@@ -2,3 +2,27 @@ project_id = "cxegrppuuvvvwjaaflhg"
 
 [functions.travel-chat]
 verify_jwt = false
+
+[functions.generate-trip-itinerary]
+verify_jwt = false
+
+[functions.ai-travel-agent]
+verify_jwt = false
+
+[functions.dynamic-trip-adjustment]
+verify_jwt = false
+
+[functions.dashboard-analytics]
+verify_jwt = false
+
+[functions.flight-search]
+verify_jwt = false
+
+[functions.hotel-search]
+verify_jwt = false
+
+[functions.restaurant-search]
+verify_jwt = false
+
+[functions.optimize-route]
+verify_jwt = false
