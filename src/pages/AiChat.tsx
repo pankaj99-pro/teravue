@@ -13,7 +13,7 @@ import {
   Bot,
   User,
   Loader2,
-  Map,
+  Map as MapIcon,
   Wand2,
   Check,
   Circle,
