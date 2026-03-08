@@ -191,8 +191,8 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
       </MapContainer>
 
       {/* Day label */}
-      <div className="absolute top-4 right-4 z-[1000] bg-white/90 backdrop-blur-md border border-border/30 shadow-sm rounded-lg px-4 py-2 text-sm text-foreground font-medium">
-        {dayTitle || "Day 1 - Arrival & Exploration"} <span className="text-muted-foreground ml-1">›</span>
+      <div className="absolute top-4 right-4 z-[1000] bg-card/90 backdrop-blur-md border border-glass-border shadow-lg rounded-xl px-4 py-2.5 text-sm text-foreground font-semibold font-display">
+        {dayTitle || "Day 1 - Arrival & Exploration"} <span className="text-primary ml-1">›</span>
       </div>
 
       {/* Route info card */}
