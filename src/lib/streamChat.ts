@@ -96,7 +96,10 @@ export async function streamTravelChat(messages: ChatMessage[], callbacks: Strea
         // Accumulate tool call chunks
         if (delta?.tool_calls) {
           for (const tc of delta.tool_calls) {
-            if (tc.function?.name) toolCallName = tc.function.name;
+            if (tc.function?.name) {
+              toolCallName = tc.function.name;
+              callbacks.onToolCallStart?.(toolCallName);
+            }
             if (tc.function?.arguments) toolCallArgs += tc.function.arguments;
           }
         }
