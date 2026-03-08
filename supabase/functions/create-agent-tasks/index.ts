@@ -92,6 +92,7 @@ serve(async (req) => {
       restaurant_agent: "restaurants_found",
       attraction_agent: "attractions_found",
       budget_agent: "budget_analysis",
+      transport_agent: "routes_optimized",
     };
 
     // Create tasks only for agents whose data doesn't exist yet

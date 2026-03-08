@@ -52,6 +52,7 @@ export function AgentActivityPanel({ tripId, isRunning }: AgentActivityPanelProp
     { agent_type: "restaurant_agent", emoji: "🍝", label: "Restaurant Agent", status: "idle", result_summary: null },
     { agent_type: "attraction_agent", emoji: "📍", label: "Attraction Agent", status: "idle", result_summary: null },
     { agent_type: "budget_agent", emoji: "💰", label: "Budget Agent", status: "idle", result_summary: null },
+    { agent_type: "transport_agent", emoji: "🚗", label: "Transport Agent", status: "idle", result_summary: null },
   ]);
   const [logs, setLogs] = useState<AgentLog[]>([]);
   const [showLogs, setShowLogs] = useState(false);

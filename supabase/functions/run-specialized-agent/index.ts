@@ -89,7 +89,46 @@ serve(async (req) => {
     // Fetch trip for context
     const { data: trip } = await supabase.from("trips").select("*").eq("id", trip_id).single();
 
-    if (task.agent_type === "budget_agent") {
+    if (task.agent_type === "transport_agent") {
+      // Transport agent: call optimize-trip-routes
+      await supabase.from("agent_logs").insert({
+        trip_id,
+        agent_run_id: task.agent_run_id,
+        step_type: "thinking",
+        message: `🚗 Transport Agent — Analyzing distances between attractions and calculating multi-modal routes`,
+      });
+
+      const routeResp = await fetch(`${baseUrl}/functions/v1/optimize-trip-routes`, {
+        method: "POST",
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({ trip_id }),
+      });
+
+      if (routeResp.ok) {
+        const routeResult = await routeResp.json();
+        const segCount = routeResult.route_segments?.length || 0;
+
+        // Save to memory
+        await supabase.from("agent_memory").insert({
+          user_id: user.id,
+          trip_id,
+          memory_type: "routes_optimized",
+          memory_key: `routes_${trip?.destination_city?.toLowerCase().replace(/\s+/g, "_") || "trip"}`,
+          content: { segments: segCount, modes: ["car", "bike", "walk", "train"], reasoning: routeResult.default_mode_reasoning },
+        });
+
+        resultSummary = `Optimized ${segCount} route segments across 4 transport modes`;
+
+        await supabase.from("agent_logs").insert({
+          trip_id,
+          agent_run_id: task.agent_run_id,
+          step_type: "tool_result",
+          message: `🚗 Transport Agent — ${resultSummary}`,
+        });
+      } else {
+        resultSummary = "Route optimization failed";
+      }
+    } else if (task.agent_type === "budget_agent") {
       // Budget agent: analyze all collected data
       const { data: memories } = await supabase
         .from("agent_memory")

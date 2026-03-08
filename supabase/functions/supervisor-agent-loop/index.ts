@@ -155,13 +155,17 @@ serve(async (req) => {
       await writeLog(run.id, "itinerary_build", "⚠️ Itinerary build failed");
     }
 
-    // Step 5: Optimize routes
-    await writeLog(run.id, "thinking", "🧠 Supervisor — Optimizing travel routes");
-    await fetch(`${baseUrl}/functions/v1/optimize-trip-routes`, {
-      method: "POST",
-      headers: { Authorization: authHeader, "Content-Type": "application/json" },
-      body: JSON.stringify({ trip_id }),
-    });
+    // Step 5: Run transport agent (optimizes routes for all modes)
+    const transportTasks = tasks.filter((t: any) => POST_ITINERARY_AGENTS.includes(t.agent_type));
+    for (const task of transportTasks) {
+      await writeLog(run.id, "thinking", `🧠 Supervisor — Dispatching ${task.agent_type.replace("_", " ")}`);
+      await fetch(`${baseUrl}/functions/v1/run-specialized-agent`, {
+        method: "POST",
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({ task_id: task.id, trip_id }),
+      });
+    }
+    await writeLog(run.id, "thinking", "🧠 Supervisor — Route optimization complete across all transport modes");
 
     // Final
     await supabase.from("agent_runs").update({
