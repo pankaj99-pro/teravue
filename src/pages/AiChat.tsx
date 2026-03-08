@@ -393,6 +393,23 @@ export default function AiChat() {
               </p>
             </div>
           </div>
+          </div>
+          </div>
+
+          {/* Right panel: Agent Activity */}
+          <AnimatePresence>
+            {(agentRunning || agentTripId) && (
+              <motion.div
+                className="hidden lg:block w-72 border-l border-border overflow-y-auto scrollbar-hide p-3"
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 288, opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <AgentActivityPanel tripId={agentTripId} isRunning={agentRunning} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
