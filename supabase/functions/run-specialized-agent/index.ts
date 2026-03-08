@@ -13,6 +13,7 @@ const AGENT_EMOJIS: Record<string, string> = {
   restaurant_agent: "🍝",
   attraction_agent: "📍",
   budget_agent: "💰",
+  transport_agent: "🚗",
 };
 
 const AGENT_LABELS: Record<string, string> = {
@@ -21,6 +22,7 @@ const AGENT_LABELS: Record<string, string> = {
   restaurant_agent: "Restaurant Agent",
   attraction_agent: "Attraction Agent",
   budget_agent: "Budget Agent",
+  transport_agent: "Transport Agent",
 };
 
 serve(async (req) => {
