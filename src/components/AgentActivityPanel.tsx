@@ -28,6 +28,7 @@ const agentIcons: Record<string, typeof Plane> = {
   restaurant_agent: UtensilsCrossed,
   attraction_agent: MapPin,
   budget_agent: DollarSign,
+  transport_agent: Car,
 };
 
 const statusColors: Record<string, string> = {
