@@ -7,40 +7,51 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const TRANSPORT_MODES = ["car", "bike", "walk", "train"];
+
 const ROUTE_TOOL = {
   type: "function",
   function: {
-    name: "return_routes",
-    description: "Return optimized travel routes between locations",
+    name: "return_multimodal_routes",
+    description: "Return optimized travel routes between consecutive locations for all transport modes",
     parameters: {
       type: "object",
       properties: {
-        routes: {
+        route_segments: {
           type: "array",
           items: {
             type: "object",
             properties: {
-              start_location: { type: "string" },
-              end_location: { type: "string" },
-              distance_km: { type: "number" },
-              travel_time_minutes: { type: "number" },
-              transport_mode: { type: "string" },
-              route_geometry: {
-                type: "object",
-                properties: {
-                  type: { type: "string" },
-                  coordinates: { type: "array", items: { type: "array", items: { type: "number" } } },
+              from_location: { type: "string" },
+              to_location: { type: "string" },
+              from_coords: { type: "object", properties: { lat: { type: "number" }, lng: { type: "number" } }, required: ["lat", "lng"] },
+              to_coords: { type: "object", properties: { lat: { type: "number" }, lng: { type: "number" } }, required: ["lat", "lng"] },
+              modes: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    transport_mode: { type: "string", enum: ["car", "bike", "walk", "train"] },
+                    distance_km: { type: "number" },
+                    duration_minutes: { type: "number" },
+                    route_polyline: {
+                      type: "array",
+                      items: { type: "array", items: { type: "number" } },
+                      description: "Array of [lat, lng] coordinate pairs forming the route path",
+                    },
+                    recommended: { type: "boolean" },
+                    reasoning: { type: "string" },
+                  },
+                  required: ["transport_mode", "distance_km", "duration_minutes"],
                 },
               },
             },
-            required: ["start_location", "end_location", "distance_km", "travel_time_minutes"],
+            required: ["from_location", "to_location", "modes"],
           },
         },
-        total_distance_km: { type: "number" },
-        total_travel_time_minutes: { type: "number" },
-        optimization_notes: { type: "string" },
+        default_mode_reasoning: { type: "string" },
       },
-      required: ["routes", "total_distance_km", "total_travel_time_minutes"],
+      required: ["route_segments"],
     },
   },
 };
@@ -84,12 +95,11 @@ serve(async (req) => {
       .order("day_number");
 
     if (!days || days.length === 0) {
-      return new Response(JSON.stringify({ error: "No itinerary found for this trip" }), {
+      return new Response(JSON.stringify({ error: "No itinerary found" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Build location list from activities
     const locations = days.flatMap((day: any) =>
       (day.activities || [])
         .filter((a: any) => a.latitude && a.longitude)
@@ -102,25 +112,37 @@ serve(async (req) => {
     );
 
     if (locations.length < 2) {
-      return new Response(JSON.stringify({ routes: [], message: "Not enough locations with coordinates" }), {
+      return new Response(JSON.stringify({ routes: [], message: "Not enough geolocated activities" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Build pairs
+    const pairs = [];
+    for (let i = 0; i < locations.length - 1; i++) {
+      pairs.push({ from: locations[i], to: locations[i + 1] });
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const prompt = `Calculate optimal travel routes between these sequential locations:
+    const prompt = `Calculate travel routes between these consecutive locations for ALL 4 transport modes (car, bike, walk, train).
 
-${locations.map((l: any, i: number) => `${i + 1}. ${l.name} (${l.lat}, ${l.lng}) - Day ${l.day}`).join("\n")}
+Location pairs:
+${pairs.map((p, i) => `${i + 1}. ${p.from.name} (${p.from.lat}, ${p.from.lng}) → ${p.to.name} (${p.to.lat}, ${p.to.lng})`).join("\n")}
 
-For each consecutive pair, determine:
-- Distance in km (use realistic road/walking distances)
-- Travel time in minutes
-- Best transport mode (walk for <1.5km, car/taxi for 1.5-20km, train for >20km)
-- Route coordinates as GeoJSON LineString (provide at least start and end point coordinates)
+For EACH pair, provide routes for all 4 modes:
+- car: realistic driving distance and time
+- bike: cycling distance and time
+- walk: walking distance and time  
+- train: public transit / metro time and distance
 
-Optimize for minimal total travel time. Suggest reordering if it would save significant time.`;
+Rules for recommending default mode:
+- distance < 1.5 km → recommend walk
+- distance 1.5–5 km → recommend bike
+- distance > 5 km → recommend car or train
+
+For each mode, provide a route_polyline as an array of [lat, lng] coordinate pairs (at least 5-8 waypoints following realistic roads/paths). Mark the recommended mode with recommended: true and include reasoning.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -131,11 +153,11 @@ Optimize for minimal total travel time. Suggest reordering if it would save sign
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: "You are a route optimization engine. Calculate realistic travel distances, times, and routes between locations." },
+          { role: "system", content: "You are a route optimization engine. Calculate realistic multi-modal travel routes with accurate distances, durations, and route coordinates." },
           { role: "user", content: prompt },
         ],
         tools: [ROUTE_TOOL],
-        tool_choice: { type: "function", function: { name: "return_routes" } },
+        tool_choice: { type: "function", function: { name: "return_multimodal_routes" } },
       }),
     });
 
@@ -148,24 +170,43 @@ Optimize for minimal total travel time. Suggest reordering if it would save sign
 
     const data = await aiResponse.json();
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    const result = toolCall ? JSON.parse(toolCall.function.arguments) : { routes: [] };
+    const result = toolCall ? JSON.parse(toolCall.function.arguments) : { route_segments: [] };
 
-    // Save routes to trip_routes table
-    if (result.routes && result.routes.length > 0) {
-      // Clear old routes for this trip
-      await supabase.from("trip_routes").delete().eq("trip_id", trip_id);
+    // Clear old routes for this trip
+    await supabase.from("trip_routes").delete().eq("trip_id", trip_id);
 
-      const routeInserts = result.routes.map((r: any) => ({
-        trip_id,
-        start_location: r.start_location,
-        end_location: r.end_location,
-        distance_km: r.distance_km,
-        travel_time_minutes: r.travel_time_minutes,
-        route_geometry: r.route_geometry || null,
-      }));
-
-      await supabase.from("trip_routes").insert(routeInserts);
+    // Save all route modes
+    const inserts: any[] = [];
+    for (const segment of result.route_segments || []) {
+      for (const mode of segment.modes || []) {
+        inserts.push({
+          trip_id,
+          from_location: segment.from_location,
+          to_location: segment.to_location,
+          distance_km: mode.distance_km,
+          duration_minutes: mode.duration_minutes,
+          transport_mode: mode.transport_mode,
+          route_polyline: mode.route_polyline ? JSON.stringify(mode.route_polyline) : null,
+          route_geometry: segment.from_coords && segment.to_coords ? {
+            from: segment.from_coords,
+            to: segment.to_coords,
+            recommended: mode.recommended || false,
+            reasoning: mode.reasoning || "",
+          } : null,
+        });
+      }
     }
+
+    if (inserts.length > 0) {
+      await supabase.from("trip_routes").insert(inserts);
+    }
+
+    // Log reasoning
+    await supabase.from("agent_logs").insert({
+      trip_id,
+      step_type: "thinking",
+      message: `🗺️ Route optimization complete: ${inserts.length} routes calculated across ${TRANSPORT_MODES.length} modes for ${pairs.length} segments. ${result.default_mode_reasoning || ""}`,
+    });
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
