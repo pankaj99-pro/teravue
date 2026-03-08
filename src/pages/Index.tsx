@@ -82,7 +82,7 @@ export default function Index() {
       <div className="flex-1 pt-16 flex flex-col md:flex-row overflow-hidden">
         {/* Left: Itinerary */}
         <div
-          className={`w-full md:w-[42%] lg:w-[38%] border-r border-border flex flex-col overflow-hidden ${
+          className={`w-full md:w-[42%] lg:w-[38%] border-r border-border flex flex-col overflow-y-auto scrollbar-hide ${
             viewMode === "map" ? "hidden md:flex" : "flex"
           }`}
           style={{ marginTop: viewMode === "itinerary" ? "2.75rem" : 0 }}
