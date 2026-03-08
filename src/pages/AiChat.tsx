@@ -234,16 +234,22 @@ export default function AiChat() {
     const assistantId = `ai-${Date.now()}`;
     let finalToolCalls: ToolCallStatus[] = [];
 
-    const upsertAssistant = (chunk: string) => {
-      assistantContent += chunk;
-      const content = assistantContent;
+    let assistantMessageCreated = false;
+
+    const ensureAssistantMessage = (content: string) => {
       updateSessionMessages(sessionId!, (msgs) => {
-        const last = msgs[msgs.length - 1];
-        if (last?.id === assistantId) {
+        const existing = msgs.find((m) => m.id === assistantId);
+        if (existing) {
           return msgs.map((m) => (m.id === assistantId ? { ...m, content } : m));
         }
+        assistantMessageCreated = true;
         return [...msgs, { id: assistantId, role: "assistant" as const, content, timestamp: new Date() }];
       });
+    };
+
+    const upsertAssistant = (chunk: string) => {
+      assistantContent += chunk;
+      ensureAssistantMessage(assistantContent);
     };
 
     try {
@@ -253,6 +259,10 @@ export default function AiChat() {
           const tc: ToolCallStatus = { name, status: "running" };
           setActiveToolCalls((prev) => [...prev, tc]);
           finalToolCalls = [...finalToolCalls, tc];
+          // Create assistant message placeholder if none exists yet
+          if (!assistantContent) {
+            ensureAssistantMessage("");
+          }
         },
         onToolCall: async (name, args) => {
           // Mark tool as done
@@ -308,11 +318,24 @@ export default function AiChat() {
         },
         onDone: () => {
           setIsTyping(false);
+
+          // Ensure the assistant message has tool call info attached
+          if (finalToolCalls.length > 0) {
+            updateSessionMessages(sessionId!, (msgs) =>
+              msgs.map((m) =>
+                m.id === assistantId
+                  ? { ...m, toolCalls: finalToolCalls }
+                  : m
+              )
+            );
+          }
+
           // Save assistant message to DB
+          const hasItinerary = finalToolCalls.some((tc) => tc.name === "create_itinerary" && tc.status === "done");
           saveMessageToDB(sessionId!, {
             role: "assistant",
-            content: assistantContent,
-            hasItinerary: finalToolCalls.some((tc) => tc.name === "create_itinerary" && tc.status === "done"),
+            content: assistantContent || (hasItinerary ? "Your itinerary has been created!" : ""),
+            hasItinerary,
             toolCalls: finalToolCalls,
           });
           // Keep tool call indicators visible for 2.5s so user sees the green checkmark
@@ -442,6 +465,8 @@ export default function AiChat() {
                       )}
 
                       <div className="max-w-[80%] space-y-2">
+                        {/* Only show text bubble if there's content */}
+                        {message.content.trim() && (
                         <div
                           className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                             message.role === "user"
@@ -466,6 +491,7 @@ export default function AiChat() {
                             {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </p>
                         </div>
+                        )}
 
                         {/* Tool call status for saved messages */}
                         {message.toolCalls && message.toolCalls.length > 0 && (
