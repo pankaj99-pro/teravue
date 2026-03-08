@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { TripHeader } from "@/components/TripHeader";
 import { ItineraryCard, ItineraryItem } from "@/components/ItineraryCard";
-import { MapPanel } from "@/components/MapPanel";
+import { MapPanel, TransportMode } from "@/components/MapPanel";
 import { useItinerary } from "@/contexts/ItineraryContext";
 
 import airportImg from "@/assets/airport.jpg";
@@ -41,6 +41,7 @@ export default function Index() {
   const [selectedDay, setSelectedDay] = useState(1);
   const [activeStop, setActiveStop] = useState(1);
   const [viewMode, setViewMode] = useState<"itinerary" | "map">("itinerary");
+  const [transportMode, setTransportMode] = useState<TransportMode>("car");
   const { tripPlan, isAiGenerated } = useItinerary();
 
   // Derive data from AI plan or fallback to demo
@@ -146,6 +147,7 @@ export default function Index() {
                   onClick={() => setActiveStop(item.id)}
                   index={i}
                   isLast={i === currentItems.length - 1}
+                  selectedMode={transportMode}
                 />
               ))}
             </motion.div>
@@ -157,7 +159,7 @@ export default function Index() {
           className={`flex-1 ${viewMode === "itinerary" ? "hidden md:block" : ""}`}
           style={{ marginTop: viewMode === "map" ? "2.75rem" : 0 }}
         >
-          <MapPanel activeStop={activeStop} customStops={mapStops} dayTitle={dayInfo[selectedDay]?.title} />
+          <MapPanel activeStop={activeStop} customStops={mapStops} dayTitle={dayInfo[selectedDay]?.title} selectedMode={transportMode} onModeChange={setTransportMode} />
         </div>
       </div>
     </div>

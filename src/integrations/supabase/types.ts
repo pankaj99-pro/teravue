@@ -538,31 +538,37 @@ export type Database = {
         Row: {
           created_at: string
           distance_km: number | null
-          end_location: string
+          duration_minutes: number | null
+          from_location: string
           id: string
           route_geometry: Json | null
-          start_location: string
-          travel_time_minutes: number | null
+          route_polyline: string | null
+          to_location: string
+          transport_mode: string
           trip_id: string
         }
         Insert: {
           created_at?: string
           distance_km?: number | null
-          end_location: string
+          duration_minutes?: number | null
+          from_location: string
           id?: string
           route_geometry?: Json | null
-          start_location: string
-          travel_time_minutes?: number | null
+          route_polyline?: string | null
+          to_location: string
+          transport_mode?: string
           trip_id: string
         }
         Update: {
           created_at?: string
           distance_km?: number | null
-          end_location?: string
+          duration_minutes?: number | null
+          from_location?: string
           id?: string
           route_geometry?: Json | null
-          start_location?: string
-          travel_time_minutes?: number | null
+          route_polyline?: string | null
+          to_location?: string
+          transport_mode?: string
           trip_id?: string
         }
         Relationships: [
