@@ -2,18 +2,23 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Users, DollarSign, ChevronLeft, Plus, Download, Share2, MoreVertical, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
+interface TripInfo {
+  destination: string;
+  description: string;
+  country: string;
+  countryFlag: string;
+  dateRange: string;
+  travelers: string;
+  avgBudget: string;
+}
+
 interface TripHeaderProps {
   selectedDay: number;
   onDayChange: (day: number) => void;
+  days: number[];
+  dayInfo: Record<number, { date: string; title: string }>;
+  tripInfo: TripInfo;
 }
-
-const dayInfo: Record<number, { date: string; title: string }> = {
-  1: { date: "October 12", title: "Arrival & Exploration" },
-  2: { date: "October 13", title: "Ancient Rome Tour" },
-  3: { date: "October 14", title: "Vatican & Museums" },
-  4: { date: "October 15", title: "Trastevere & Food Tour" },
-  5: { date: "October 16", title: "Departure Day" },
-};
 
 const actionButtons = [
   { Icon: Plus, label: "Add activity" },
@@ -22,9 +27,8 @@ const actionButtons = [
   { Icon: MoreVertical, label: "More options" },
 ];
 
-export function TripHeader({ selectedDay, onDayChange }: TripHeaderProps) {
-  const days = [1, 2, 3, 4, 5];
-  const info = dayInfo[selectedDay];
+export function TripHeader({ selectedDay, onDayChange, days, dayInfo, tripInfo }: TripHeaderProps) {
+  const info = dayInfo[selectedDay] || { date: "", title: "" };
 
   const handleAction = (label: string) => {
     toast.success(`${label} — coming soon!`);
@@ -59,38 +63,36 @@ export function TripHeader({ selectedDay, onDayChange }: TripHeaderProps) {
 
       {/* Title */}
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-foreground">Rome Getaway — 5 Days Trip</h1>
-        <p className="text-xs md:text-sm text-muted-foreground mt-1">
-          A 5-day escape through Rome's timeless landmarks, local cuisine, and hidden gems.
-        </p>
+        <h1 className="text-xl md:text-2xl font-bold text-foreground">{tripInfo.destination}</h1>
+        <p className="text-xs md:text-sm text-muted-foreground mt-1">{tripInfo.description}</p>
       </div>
 
       {/* Metadata */}
       <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="text-base">🇮🇹</span> Italy
+          <span className="text-base">{tripInfo.countryFlag}</span> {tripInfo.country}
         </span>
         <span className="text-border">|</span>
         <span className="flex items-center gap-1.5">
-          <Calendar className="w-3.5 h-3.5" /> Oct 12–16
+          <Calendar className="w-3.5 h-3.5" /> {tripInfo.dateRange}
         </span>
         <span className="text-border">|</span>
         <span className="flex items-center gap-1.5">
-          <Users className="w-3.5 h-3.5" /> 2 Adults
+          <Users className="w-3.5 h-3.5" /> {tripInfo.travelers}
         </span>
         <span className="text-border">|</span>
         <span className="flex items-center gap-1.5">
-          <DollarSign className="w-3.5 h-3.5" /> $1,200.00 Avg.
+          <DollarSign className="w-3.5 h-3.5" /> {tripInfo.avgBudget}
         </span>
       </div>
 
       {/* Day selector */}
-      <div className="flex items-center gap-2 md:gap-3 relative">
+      <div className="flex items-center gap-2 md:gap-3 relative overflow-x-auto scrollbar-hide">
         {days.map((day) => (
           <button
             key={day}
             onClick={() => onDayChange(day)}
-            className={`relative px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200 ${
+            className={`relative px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-200 whitespace-nowrap ${
               selectedDay === day
                 ? "text-primary"
                 : "text-muted-foreground hover:text-foreground border border-transparent"

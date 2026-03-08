@@ -1,61 +1,97 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { TripHeader } from "@/components/TripHeader";
 import { ItineraryCard, ItineraryItem } from "@/components/ItineraryCard";
 import { MapPanel } from "@/components/MapPanel";
+import { useItinerary } from "@/contexts/ItineraryContext";
 
 import airportImg from "@/assets/airport.jpg";
 import hotelImg from "@/assets/hotel.jpg";
 import restaurantImg from "@/assets/restaurant.jpg";
 import colosseumImg from "@/assets/colosseum.jpg";
 
-const itineraryItems: ItineraryItem[] = [
-  {
-    id: 1,
-    time: "10:30 AM",
-    title: "Fiumicino Airport (Arrival)",
-    location: "Leonardo da Vinci Intl. Airport",
-    priceLabel: "Included in Flight Ticket",
-    buttonLabel: "Book a Flight",
-    image: airportImg,
-  },
-  {
-    id: 2,
-    time: "12:00 PM",
-    title: "Albergo Roma (Hotel Check-in)",
-    location: "City Center, Rome",
-    price: "$130.00",
-    priceLabel: "per night",
-    buttonLabel: "View Booking",
-    image: hotelImg,
-  },
-  {
-    id: 3,
-    time: "1:00 PM",
-    title: "Trattoria da Enzo al 29 (Lunch)",
-    location: "Trastevere, Rome",
-    price: "$27.00",
-    priceLabel: "per person",
-    buttonLabel: "Reserve Table",
-    image: restaurantImg,
-  },
-  {
-    id: 4,
-    time: "3:00 PM",
-    title: "Colosseum & Roman Forum",
-    location: "Piazza del Colosseo, Rome",
-    price: "$20.00",
-    priceLabel: "per ticket",
-    buttonLabel: "Book Ticket",
-    image: colosseumImg,
-  },
+// Image map for AI-generated stops
+const imageMap: Record<string, string> = {
+  airport: airportImg,
+  hotel: hotelImg,
+  restaurant: restaurantImg,
+  landmark: colosseumImg,
+  activity: colosseumImg,
+  transport: airportImg,
+};
+
+// Default demo data
+const defaultDayInfo: Record<number, { date: string; title: string }> = {
+  1: { date: "October 12", title: "Arrival & Exploration" },
+  2: { date: "October 13", title: "Ancient Rome Tour" },
+  3: { date: "October 14", title: "Vatican & Museums" },
+  4: { date: "October 15", title: "Trastevere & Food Tour" },
+  5: { date: "October 16", title: "Departure Day" },
+};
+
+const defaultItems: ItineraryItem[] = [
+  { id: 1, time: "10:30 AM", title: "Fiumicino Airport (Arrival)", location: "Leonardo da Vinci Intl. Airport", priceLabel: "Included in Flight Ticket", buttonLabel: "Book a Flight", image: airportImg },
+  { id: 2, time: "12:00 PM", title: "Albergo Roma (Hotel Check-in)", location: "City Center, Rome", price: "$130.00", priceLabel: "per night", buttonLabel: "View Booking", image: hotelImg },
+  { id: 3, time: "1:00 PM", title: "Trattoria da Enzo al 29 (Lunch)", location: "Trastevere, Rome", price: "$27.00", priceLabel: "per person", buttonLabel: "Reserve Table", image: restaurantImg },
+  { id: 4, time: "3:00 PM", title: "Colosseum & Roman Forum", location: "Piazza del Colosseo, Rome", price: "$20.00", priceLabel: "per ticket", buttonLabel: "Book Ticket", image: colosseumImg },
 ];
 
 export default function Index() {
   const [selectedDay, setSelectedDay] = useState(1);
   const [activeStop, setActiveStop] = useState(1);
   const [viewMode, setViewMode] = useState<"itinerary" | "map">("itinerary");
+  const { tripPlan, isAiGenerated } = useItinerary();
+
+  // Derive data from AI plan or fallback to demo
+  const totalDays = isAiGenerated ? tripPlan!.totalDays : 5;
+  const days = Array.from({ length: totalDays }, (_, i) => i + 1);
+
+  const dayInfo = useMemo(() => {
+    if (!isAiGenerated) return defaultDayInfo;
+    const info: Record<number, { date: string; title: string }> = {};
+    for (const day of tripPlan!.days) {
+      info[day.day] = { date: day.date, title: day.title };
+    }
+    return info;
+  }, [tripPlan, isAiGenerated]);
+
+  const currentItems: ItineraryItem[] = useMemo(() => {
+    if (!isAiGenerated) return defaultItems;
+    const dayPlan = tripPlan!.days.find((d) => d.day === selectedDay);
+    if (!dayPlan) return [];
+    return dayPlan.stops.map((stop) => ({
+      ...stop,
+      image: imageMap[stop.image] || colosseumImg,
+    }));
+  }, [tripPlan, isAiGenerated, selectedDay]);
+
+  const mapStops = useMemo(() => {
+    if (!isAiGenerated) return undefined; // MapPanel uses its own defaults
+    const dayPlan = tripPlan!.days.find((d) => d.day === selectedDay);
+    if (!dayPlan) return [];
+    return dayPlan.stops
+      .filter((s) => s.lat && s.lng)
+      .map((s) => ({
+        id: s.id,
+        label: s.title,
+        lat: s.lat!,
+        lng: s.lng!,
+        img: imageMap[s.image] || colosseumImg,
+      }));
+  }, [tripPlan, isAiGenerated, selectedDay]);
+
+  const headerProps = {
+    destination: isAiGenerated ? `${tripPlan!.destination} Getaway — ${tripPlan!.totalDays} Days Trip` : "Rome Getaway — 5 Days Trip",
+    description: isAiGenerated
+      ? `AI-planned trip to ${tripPlan!.destination}, ${tripPlan!.country}`
+      : "A 5-day escape through Rome's timeless landmarks, local cuisine, and hidden gems.",
+    country: isAiGenerated ? tripPlan!.country : "Italy",
+    countryFlag: isAiGenerated ? tripPlan!.countryFlag : "🇮🇹",
+    dateRange: isAiGenerated ? tripPlan!.dateRange : "Oct 12–16",
+    travelers: isAiGenerated ? tripPlan!.travelers : "2 Adults",
+    avgBudget: isAiGenerated ? tripPlan!.avgBudget : "$1,200.00 Avg.",
+  };
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
@@ -68,9 +104,7 @@ export default function Index() {
             key={mode}
             onClick={() => setViewMode(mode)}
             className={`flex-1 py-3 text-sm font-medium capitalize transition-colors ${
-              viewMode === mode
-                ? "text-primary border-b-2 border-primary"
-                : "text-muted-foreground"
+              viewMode === mode ? "text-primary border-b-2 border-primary" : "text-muted-foreground"
             }`}
           >
             {mode}
@@ -87,38 +121,42 @@ export default function Index() {
           }`}
           style={{ marginTop: viewMode === "itinerary" ? "2.75rem" : 0 }}
         >
-          <TripHeader selectedDay={selectedDay} onDayChange={setSelectedDay} />
+          <TripHeader
+            selectedDay={selectedDay}
+            onDayChange={(day) => { setSelectedDay(day); setActiveStop(1); }}
+            days={days}
+            dayInfo={dayInfo}
+            tripInfo={headerProps}
+          />
 
           <AnimatePresence mode="wait">
             <motion.div
               key={selectedDay}
               className="px-4 md:px-6 pb-8 space-y-0.5"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -16 }}
-                transition={{ duration: 0.3 }}
-              >
-                {itineraryItems.map((item, i) => (
-                  <ItineraryCard
-                    key={item.id}
-                    item={item}
-                    isActive={activeStop === item.id}
-                    onClick={() => setActiveStop(item.id)}
-                    index={i}
-                  />
-                ))}
-              </motion.div>
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -16 }}
+              transition={{ duration: 0.3 }}
+            >
+              {currentItems.map((item, i) => (
+                <ItineraryCard
+                  key={item.id}
+                  item={item}
+                  isActive={activeStop === item.id}
+                  onClick={() => setActiveStop(item.id)}
+                  index={i}
+                />
+              ))}
+            </motion.div>
           </AnimatePresence>
         </div>
 
         {/* Right: Map */}
         <div
-          className={`flex-1 ${
-            viewMode === "itinerary" ? "hidden md:block" : ""
-          }`}
+          className={`flex-1 ${viewMode === "itinerary" ? "hidden md:block" : ""}`}
           style={{ marginTop: viewMode === "map" ? "2.75rem" : 0 }}
         >
-          <MapPanel activeStop={activeStop} />
+          <MapPanel activeStop={activeStop} customStops={mapStops} dayTitle={dayInfo[selectedDay]?.title} />
         </div>
       </div>
     </div>

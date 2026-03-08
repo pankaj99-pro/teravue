@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   Send,
   Sparkles,
@@ -12,122 +13,35 @@ import {
   Bot,
   User,
   Loader2,
+  Map,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
+import { useItinerary } from "@/contexts/ItineraryContext";
+import { streamTravelChat, ChatMessage } from "@/lib/streamChat";
+import { toast } from "sonner";
 
-interface Message {
+interface UIMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  hasItinerary?: boolean;
 }
 
 const suggestionChips = [
-  { label: "Plan a trip to Tokyo", icon: Plane },
-  { label: "Best restaurants in Paris", icon: UtensilsCrossed },
-  { label: "Hotels near Colosseum", icon: Hotel },
-  { label: "Hidden gems in Bali", icon: Compass },
+  { label: "Plan a 5-day trip to Tokyo", icon: Plane },
+  { label: "Plan a 3-day trip to Paris with restaurants", icon: UtensilsCrossed },
+  { label: "Plan a week in Bali with hidden gems", icon: Compass },
+  { label: "Plan a romantic 4-day trip to Santorini", icon: Hotel },
 ];
 
-const sampleResponses: Record<string, string> = {
-  default: `Great question! I'd love to help you plan your next adventure. Here are some things I can assist with:
-
-- 🗺️ **Destination recommendations** based on your preferences
-- ✈️ **Flight & hotel suggestions** with estimated pricing
-- 🍽️ **Restaurant picks** curated by locals
-- 📅 **Day-by-day itineraries** tailored to your travel style
-
-What kind of trip are you dreaming about?`,
-  tokyo: `## 🇯🇵 Tokyo — A Perfect 5-Day Itinerary
-
-Tokyo is an incredible blend of ultra-modern and traditional. Here's what I'd suggest:
-
-**Day 1 — Shibuya & Harajuku**
-- Walk the famous Shibuya Crossing
-- Explore Takeshita Street for quirky fashion
-- Dinner at a local ramen shop (~$12)
-
-**Day 2 — Asakusa & Akihabara**
-- Visit Senso-ji Temple (free)
-- Browse electronics & anime shops
-- Try street food at Nakamise-dori
-
-**Day 3 — Shinjuku & Golden Gai**
-- Shinjuku Gyoen National Garden ($2.50)
-- Explore the tiny bars of Golden Gai
-- Robot Restaurant show ($55)
-
-**Estimated budget:** $1,800–2,400 for 5 days (flights not included)
-
-Want me to create a full itinerary with bookings?`,
-  paris: `## 🇫🇷 Best Restaurants in Paris
-
-Here are my top picks across different price ranges:
-
-### 💎 Fine Dining
-- **Le Comptoir du Panthéon** — Classic French bistro, ~$45/person
-- **Septime** — Modern French, Michelin-starred, ~$95/person
-
-### 🍷 Mid-Range
-- **Breizh Café** — Best crêpes in Le Marais, ~$18/person
-- **Chez Janou** — Famous chocolate mousse, ~$30/person
-
-### 🥖 Budget-Friendly
-- **L'As du Fallafel** — Legendary falafel in the Marais, ~$8
-- **Pink Mamma** — Italian-French fusion, ~$15/person
-
-Shall I add any of these to your Rome itinerary, or plan a separate Paris trip?`,
-  hotel: `## 🏨 Hotels Near the Colosseum
-
-I found some great options within walking distance:
-
-| Hotel | Distance | Price/Night | Rating |
-|-------|----------|-------------|--------|
-| Hotel Palazzo Manfredi | 50m | $320 | ⭐⭐⭐⭐⭐ |
-| Mercure Roma Centro | 200m | $145 | ⭐⭐⭐⭐ |
-| Hotel Lancelot | 300m | $110 | ⭐⭐⭐⭐ |
-| The Inn at the Roman Forum | 400m | $195 | ⭐⭐⭐⭐⭐ |
-
-💡 **My recommendation:** Hotel Lancelot offers the best value — great reviews, family-run, and only a 4-minute walk to the Colosseum.
-
-Want me to check availability for your October dates?`,
-  bali: `## 🌴 Hidden Gems in Bali
-
-Skip the tourist traps! Here are spots most visitors miss:
-
-### 🏖️ Secret Beaches
-- **Nyang Nyang Beach** — A hidden paradise with almost no crowds
-- **Green Bowl Beach** — Stunning cliffs, requires 300 steps down
-
-### 🌿 Nature & Culture
-- **Sidemen Valley** — Rice terraces without the Tegallalang crowds
-- **Tukad Cepung Waterfall** — A magical cave waterfall
-- **Penglipuran Village** — One of the cleanest villages in the world
-
-### 🍜 Local Food Spots
-- **Warung Babi Guling Ibu Oka** — Legendary roast pork ($3)
-- **Nasi Ayam Kedewatan** — Best chicken rice in Ubud ($2)
-
-**Pro tip:** Rent a scooter ($5/day) to explore these off-the-beaten-path locations.
-
-Want me to build a Bali itinerary around these gems?`,
-};
-
-function getResponse(input: string): string {
-  const lower = input.toLowerCase();
-  if (lower.includes("tokyo") || lower.includes("japan")) return sampleResponses.tokyo;
-  if (lower.includes("paris") || lower.includes("restaurant") || lower.includes("food")) return sampleResponses.paris;
-  if (lower.includes("hotel") || lower.includes("colosseum") || lower.includes("stay")) return sampleResponses.hotel;
-  if (lower.includes("bali") || lower.includes("hidden") || lower.includes("gem")) return sampleResponses.bali;
-  return sampleResponses.default;
-}
-
 export default function AiChat() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const navigate = useNavigate();
+  const { setTripPlan } = useItinerary();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -139,9 +53,9 @@ export default function AiChat() {
 
   const handleSend = async (text?: string) => {
     const messageText = text || input.trim();
-    if (!messageText) return;
+    if (!messageText || isTyping) return;
 
-    const userMessage: Message = {
+    const userMessage: UIMessage = {
       id: Date.now().toString(),
       role: "user",
       content: messageText,
@@ -152,18 +66,69 @@ export default function AiChat() {
     setInput("");
     setIsTyping(true);
 
-    // Simulate AI response delay
-    await new Promise((resolve) => setTimeout(resolve, 1200 + Math.random() * 800));
+    // Build conversation history for API
+    const history: ChatMessage[] = [
+      ...messages.map((m) => ({ role: m.role, content: m.content })),
+      { role: "user" as const, content: messageText },
+    ];
 
-    const assistantMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      role: "assistant",
-      content: getResponse(messageText),
-      timestamp: new Date(),
+    let assistantContent = "";
+    let gotItinerary = false;
+
+    const upsertAssistant = (chunk: string) => {
+      assistantContent += chunk;
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant" && last.id.startsWith("ai-")) {
+          return prev.map((m, i) =>
+            i === prev.length - 1 ? { ...m, content: assistantContent } : m
+          );
+        }
+        return [
+          ...prev,
+          {
+            id: `ai-${Date.now()}`,
+            role: "assistant" as const,
+            content: assistantContent,
+            timestamp: new Date(),
+          },
+        ];
+      });
     };
 
-    setIsTyping(false);
-    setMessages((prev) => [...prev, assistantMessage]);
+    try {
+      await streamTravelChat(history, {
+        onDelta: (chunk) => upsertAssistant(chunk),
+        onToolCall: (name, args) => {
+          if (name === "create_itinerary") {
+            gotItinerary = true;
+            setTripPlan(args);
+            toast.success("✨ Itinerary generated! View it on the Itinerary page.");
+            // Mark the last assistant message
+            setMessages((prev) =>
+              prev.map((m, i) =>
+                i === prev.length - 1 ? { ...m, hasItinerary: true } : m
+              )
+            );
+          }
+        },
+        onDone: () => {
+          setIsTyping(false);
+          if (!assistantContent && !gotItinerary) {
+            upsertAssistant("I couldn't generate a response. Please try again.");
+          }
+        },
+        onError: (error) => {
+          setIsTyping(false);
+          toast.error(error);
+          upsertAssistant(`⚠️ ${error}`);
+        },
+      });
+    } catch (e) {
+      setIsTyping(false);
+      toast.error("Failed to connect to AI service");
+      upsertAssistant("⚠️ Failed to connect to AI service. Please try again.");
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -182,7 +147,6 @@ export default function AiChat() {
         <div className="flex-1 overflow-y-auto scrollbar-hide">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center px-4">
-              {/* Welcome state */}
               <motion.div
                 className="text-center max-w-lg space-y-6"
                 initial={{ opacity: 0, y: 20 }}
@@ -199,10 +163,10 @@ export default function AiChat() {
 
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-                    Your AI Travel Companion
+                    Your AI Travel Planner
                   </h1>
                   <p className="text-muted-foreground mt-2 text-sm md:text-base">
-                    Ask me anything about destinations, itineraries, flights, hotels, or local experiences.
+                    Tell me where you want to go and I'll create a complete itinerary you can view on the map.
                   </p>
                 </div>
 
@@ -220,7 +184,7 @@ export default function AiChat() {
                     >
                       <chip.icon className="w-5 h-5 text-primary mb-2 group-hover:scale-110 transition-transform" />
                       <p className="text-sm font-medium text-foreground">{chip.label}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Tap to explore →</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Tap to plan →</p>
                     </motion.button>
                   ))}
                 </div>
@@ -230,10 +194,10 @@ export default function AiChat() {
                     <Globe className="w-3.5 h-3.5" /> 195+ countries
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5" /> Real-time data
+                    <MapPin className="w-3.5 h-3.5" /> Real AI planning
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5" /> AI-powered
+                    <Sparkles className="w-3.5 h-3.5" /> Powered by Gemini
                   </span>
                 </div>
               </motion.div>
@@ -255,32 +219,46 @@ export default function AiChat() {
                       </div>
                     )}
 
-                    <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                        message.role === "user"
-                          ? "bg-primary text-primary-foreground rounded-br-md"
-                          : "glass-panel rounded-bl-md"
-                      }`}
-                    >
-                      {message.role === "assistant" ? (
-                        <div className="prose prose-sm prose-invert max-w-none [&_h2]:text-base [&_h2]:font-bold [&_h2]:mb-2 [&_h2]:mt-0 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-1 [&_h3]:mt-3 [&_p]:mb-2 [&_ul]:mb-2 [&_li]:mb-0.5 [&_table]:text-xs [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1 [&_strong]:text-foreground">
-                          {message.content.split("\n").map((line, i) => {
-                            if (line.startsWith("## ")) return <h2 key={i}>{line.replace("## ", "")}</h2>;
-                            if (line.startsWith("### ")) return <h3 key={i}>{line.replace("### ", "")}</h3>;
-                            if (line.startsWith("- ")) return <p key={i} className="pl-2">{renderBold(line)}</p>;
-                            if (line.startsWith("| ")) return <p key={i} className="font-mono text-xs text-muted-foreground">{line}</p>;
-                            if (line.trim() === "") return <div key={i} className="h-1" />;
-                            return <p key={i}>{renderBold(line)}</p>;
-                          })}
-                        </div>
-                      ) : (
-                        <p>{message.content}</p>
+                    <div className="max-w-[80%] space-y-2">
+                      <div
+                        className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                          message.role === "user"
+                            ? "bg-primary text-primary-foreground rounded-br-md"
+                            : "glass-panel rounded-bl-md"
+                        }`}
+                      >
+                        {message.role === "assistant" ? (
+                          <div className="prose prose-sm prose-invert max-w-none [&_h2]:text-base [&_h2]:font-bold [&_h2]:mb-2 [&_h2]:mt-0 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-1 [&_h3]:mt-3 [&_p]:mb-2 [&_ul]:mb-2 [&_li]:mb-0.5 [&_strong]:text-foreground">
+                            {message.content.split("\n").map((line, i) => {
+                              if (line.startsWith("## ")) return <h2 key={i}>{line.replace("## ", "")}</h2>;
+                              if (line.startsWith("### ")) return <h3 key={i}>{line.replace("### ", "")}</h3>;
+                              if (line.startsWith("- ")) return <p key={i} className="pl-2">{renderBold(line)}</p>;
+                              if (line.trim() === "") return <div key={i} className="h-1" />;
+                              return <p key={i}>{renderBold(line)}</p>;
+                            })}
+                          </div>
+                        ) : (
+                          <p>{message.content}</p>
+                        )}
+                        <p className={`text-[10px] mt-2 ${message.role === "user" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+                          {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
+
+                      {/* View Itinerary CTA */}
+                      {message.hasItinerary && (
+                        <motion.button
+                          onClick={() => navigate("/")}
+                          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary to-secondary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity w-full justify-center"
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <Map className="w-4 h-4" />
+                          View Itinerary on Map
+                        </motion.button>
                       )}
-                      <p className={`text-[10px] mt-2 ${
-                        message.role === "user" ? "text-primary-foreground/60" : "text-muted-foreground"
-                      }`}>
-                        {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </p>
                     </div>
 
                     {message.role === "user" && (
@@ -306,21 +284,9 @@ export default function AiChat() {
                     </div>
                     <div className="glass-panel rounded-2xl rounded-bl-md px-4 py-3">
                       <div className="flex items-center gap-1.5">
-                        <motion.div
-                          className="w-2 h-2 rounded-full bg-primary"
-                          animate={{ scale: [1, 1.3, 1] }}
-                          transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
-                        />
-                        <motion.div
-                          className="w-2 h-2 rounded-full bg-primary"
-                          animate={{ scale: [1, 1.3, 1] }}
-                          transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
-                        />
-                        <motion.div
-                          className="w-2 h-2 rounded-full bg-primary"
-                          animate={{ scale: [1, 1.3, 1] }}
-                          transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
-                        />
+                        <motion.div className="w-2 h-2 rounded-full bg-primary" animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0 }} />
+                        <motion.div className="w-2 h-2 rounded-full bg-primary" animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }} />
+                        <motion.div className="w-2 h-2 rounded-full bg-primary" animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }} />
                       </div>
                     </div>
                   </motion.div>
@@ -337,11 +303,10 @@ export default function AiChat() {
           <div className="max-w-3xl mx-auto">
             <div className="glass-panel rounded-2xl flex items-end gap-2 p-2">
               <textarea
-                ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about any destination, itinerary, or travel tips…"
+                placeholder="Plan a trip to Tokyo for 5 days…"
                 rows={1}
                 className="flex-1 bg-transparent text-foreground text-sm placeholder:text-muted-foreground resize-none outline-none px-3 py-2.5 max-h-32"
                 style={{ minHeight: "40px" }}
@@ -353,15 +318,11 @@ export default function AiChat() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                {isTyping ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
+                {isTyping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               </motion.button>
             </div>
             <p className="text-[10px] text-muted-foreground text-center mt-2">
-              AI-generated travel suggestions. Always verify bookings and travel advisories.
+              Powered by AI · Itineraries auto-populate on the Itinerary page
             </p>
           </div>
         </div>
