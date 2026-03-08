@@ -111,12 +111,16 @@ ${memoryContext || "No data collected yet."}
 Additional context: ${current_context || "Starting fresh."}
 
 Rules:
-1. If no flights found yet, search flights first.
-2. If no hotels found, search hotels next.
-3. If no restaurants found, search restaurants.
-4. If flights, hotels, and restaurants are all found, build the itinerary.
-5. If itinerary is already built, return "done".
-6. Include relevant parameters for whichever search you choose.`;
+1. Check existing memory before searching — do NOT repeat searches that already have results.
+2. Already collected data types: ${memoryTypes.join(", ") || "none"}
+3. Already used memory keys: ${memoryKeys.join(", ") || "none"}
+4. If flights data exists (flights_found), skip flight search.
+5. If hotels data exists (hotels_found), skip hotel search.
+6. If restaurants data exists (restaurants_found), skip restaurant search.
+7. If attractions data exists (attractions_found), skip attraction search.
+8. If all search data is collected, build the itinerary.
+9. If itinerary_draft exists, return "done".
+10. Include relevant parameters for whichever search you choose.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
