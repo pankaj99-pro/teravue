@@ -2,13 +2,8 @@ import { useEffect, useState, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Car, Bike, Train, Footprints, Zap, X, ArrowDown } from "lucide-react";
-import { toast } from "sonner";
+import { Car, Bike, Train, Footprints, Zap, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import airportImg from "@/assets/airport.jpg";
-import hotelImg from "@/assets/hotel.jpg";
-import restaurantImg from "@/assets/restaurant.jpg";
-import colosseumImg from "@/assets/colosseum.jpg";
 
 export interface MapStop {
   id: number;
@@ -40,43 +35,6 @@ interface MapPanelProps {
   onModeChange: (mode: TransportMode) => void;
 }
 
-const defaultStops: MapStop[] = [
-  { id: 1, label: "Fiumicino Airport", lat: 41.8003, lng: 12.2389, img: airportImg },
-  { id: 2, label: "Albergo Roma", lat: 41.8967, lng: 12.4822, img: hotelImg },
-  { id: 3, label: "Trattoria da Enzo", lat: 41.8893, lng: 12.4692, img: restaurantImg },
-  { id: 4, label: "Colosseum", lat: 41.8902, lng: 12.4922, img: colosseumImg },
-];
-
-const defaultSegments: RouteSegment[] = [
-  {
-    from: "Fiumicino Airport", to: "Albergo Roma",
-    modes: [
-      { transport_mode: "car", distance_km: 32, duration_minutes: 40 },
-      { transport_mode: "train", distance_km: 35, duration_minutes: 35 },
-      { transport_mode: "bike", distance_km: 30, duration_minutes: 95 },
-      { transport_mode: "walk", distance_km: 29, duration_minutes: 360 },
-    ],
-  },
-  {
-    from: "Albergo Roma", to: "Trattoria da Enzo",
-    modes: [
-      { transport_mode: "car", distance_km: 2.5, duration_minutes: 8 },
-      { transport_mode: "bike", distance_km: 2.8, duration_minutes: 10 },
-      { transport_mode: "walk", distance_km: 2.3, duration_minutes: 28 },
-      { transport_mode: "train", distance_km: 3.1, duration_minutes: 12 },
-    ],
-  },
-  {
-    from: "Trattoria da Enzo", to: "Colosseum",
-    modes: [
-      { transport_mode: "car", distance_km: 3.2, duration_minutes: 10 },
-      { transport_mode: "bike", distance_km: 3.5, duration_minutes: 12 },
-      { transport_mode: "walk", distance_km: 2.9, duration_minutes: 35 },
-      { transport_mode: "train", distance_km: 4, duration_minutes: 15 },
-    ],
-  },
-];
-
 const modeConfig: Record<TransportMode, { icon: typeof Car; label: string; color: string; description: string }> = {
   car: { icon: Car, label: "Car", color: "hsl(210,100%,60%)", description: "Fastest by road. Includes taxi and rideshare options." },
   bike: { icon: Bike, label: "Bike", color: "hsl(142,70%,50%)", description: "Eco-friendly cycling through bike lanes and streets." },
@@ -106,10 +64,12 @@ function createNumberedIcon(id: number, isActive: boolean) {
 
 function FlyToActive({ activeStop, stops }: { activeStop: number; stops: MapStop[] }) {
   const map = useMap();
+
   useEffect(() => {
     const stop = stops.find((s) => s.id === activeStop);
     if (stop) map.flyTo([stop.lat, stop.lng], 14, { duration: 1 });
   }, [activeStop, stops, map]);
+
   return null;
 }
 
@@ -121,27 +81,30 @@ function formatDuration(min: number): string {
 }
 
 export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, selectedMode, onModeChange }: MapPanelProps) {
-  const hasCustomData = customStops && customStops.length > 0;
-  const stops = hasCustomData ? customStops : defaultStops;
-  const segments = routeSegments && routeSegments.length > 0 ? routeSegments : (hasCustomData ? [] : defaultSegments);
-  const center: [number, number] = stops.length > 0 ? [stops[0].lat, stops[0].lng] : [41.89, 12.48];
+  const stops = customStops ?? [];
+  const segments = routeSegments ?? [];
+  const center: [number, number] = stops.length > 0 ? [stops[0].lat, stops[0].lng] : [20, 0];
 
   const [showRouteCard, setShowRouteCard] = useState(true);
 
   const config = modeConfig[selectedMode];
   const ModeIcon = config.icon;
 
-  // Calculate total distance and duration for selected mode
   const totals = useMemo(() => {
-    let dist = 0, dur = 0;
+    let dist = 0;
+    let dur = 0;
+
     for (const seg of segments) {
       const m = seg.modes.find((md) => md.transport_mode === selectedMode);
-      if (m) { dist += m.distance_km; dur += m.duration_minutes; }
+      if (m) {
+        dist += m.distance_km;
+        dur += m.duration_minutes;
+      }
     }
+
     return { distance: dist.toFixed(1), duration: formatDuration(dur) };
   }, [segments, selectedMode]);
 
-  // Build polyline from stops (fallback when no custom polylines)
   const routeCoords: [number, number][] = stops.map((s) => [s.lat, s.lng]);
 
   const handleModeChange = (mode: TransportMode) => {
@@ -153,7 +116,7 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
     <div className="relative w-full h-full overflow-hidden bg-background">
       <MapContainer
         center={center}
-        zoom={12}
+        zoom={stops.length > 0 ? 12 : 2}
         className="w-full h-full z-0"
         zoomControl={false}
         attributionControl={false}
@@ -163,10 +126,19 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           attribution='&copy; <a href="https://carto.com/">CARTO</a>'
         />
-        <Polyline
-          positions={routeCoords}
-          pathOptions={{ color: config.color, weight: 4, opacity: 0.85, dashArray: selectedMode === "walk" ? "6 8" : selectedMode === "bike" ? "12 6" : undefined }}
-        />
+
+        {routeCoords.length > 1 && (
+          <Polyline
+            positions={routeCoords}
+            pathOptions={{
+              color: config.color,
+              weight: 4,
+              opacity: 0.85,
+              dashArray: selectedMode === "walk" ? "6 8" : selectedMode === "bike" ? "12 6" : undefined,
+            }}
+          />
+        )}
+
         {stops.map((stop) => (
           <Marker key={stop.id} position={[stop.lat, stop.lng]} icon={createNumberedIcon(stop.id, activeStop === stop.id)}>
             <Popup>
@@ -177,17 +149,16 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
             </Popup>
           </Marker>
         ))}
+
         <FlyToActive activeStop={activeStop} stops={stops} />
       </MapContainer>
 
-      {/* Day label */}
       <div className="absolute top-4 right-4 z-[1000] bg-card/90 backdrop-blur-md border border-glass-border shadow-lg rounded-xl px-4 py-2.5 text-sm text-foreground font-semibold font-display">
-        {dayTitle || "Day 1 - Arrival & Exploration"} <span className="text-primary ml-1">›</span>
+        {dayTitle || "No day selected"}
       </div>
 
-      {/* Route info card */}
       <AnimatePresence>
-        {showRouteCard && (
+        {showRouteCard && segments.length > 0 && (
           <motion.div
             className="absolute bottom-20 left-4 z-[1000] bg-[hsl(225,25%,11%)] border border-glass-border shadow-2xl rounded-xl p-4 w-72 space-y-3"
             initial={{ opacity: 0, y: 20 }}
@@ -220,12 +191,12 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
               <p className="text-xs text-foreground/80 leading-relaxed">{config.description}</p>
             </div>
 
-            {/* Segment breakdown */}
             <div className="space-y-2 pt-2 border-t border-border/40">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Segments</p>
               {segments.map((seg, i) => {
                 const modeData = seg.modes.find((m) => m.transport_mode === selectedMode);
                 if (!modeData) return null;
+
                 return (
                   <div key={i} className="flex items-center justify-between text-xs">
                     <span className="text-foreground/70 truncate flex-1 mr-3">{seg.from} → {seg.to}</span>
@@ -235,17 +206,19 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
               })}
             </div>
 
-            {/* Mode comparison */}
             <div className="grid grid-cols-4 gap-1.5 pt-2 border-t border-border/40">
               {ALL_MODES.map((mode) => {
                 const mc = modeConfig[mode];
                 const Icon = mc.icon;
                 let totalDur = 0;
+
                 for (const seg of segments) {
                   const m = seg.modes.find((md) => md.transport_mode === mode);
                   if (m) totalDur += m.duration_minutes;
                 }
+
                 const isSelected = mode === selectedMode;
+
                 return (
                   <button
                     key={mode}
@@ -266,12 +239,26 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         )}
       </AnimatePresence>
 
-      {/* Transport mode controls (right sidebar) */}
+      {segments.length === 0 && stops.length > 0 && (
+        <div className="absolute bottom-20 left-4 z-[1000] rounded-xl border border-border bg-card/95 px-4 py-3 text-xs text-muted-foreground shadow-lg">
+          Route details are unavailable for this day.
+        </div>
+      )}
+
+      {stops.length === 0 && (
+        <div className="absolute inset-0 z-[900] flex items-center justify-center pointer-events-none">
+          <div className="rounded-xl border border-border bg-card/95 px-4 py-3 text-sm text-muted-foreground shadow-lg">
+            No map data available. Load a trip to see stops and routes.
+          </div>
+        </div>
+      )}
+
       <div className="absolute right-4 top-1/2 -translate-y-1/2 z-[1000] flex flex-col gap-2">
         {ALL_MODES.map((mode) => {
           const mc = modeConfig[mode];
           const Icon = mc.icon;
           const isSelected = mode === selectedMode;
+
           return (
             <button
               key={mode}
@@ -292,3 +279,4 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
     </div>
   );
 }
+
