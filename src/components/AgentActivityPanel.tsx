@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plane, Hotel, UtensilsCrossed, MapPin, DollarSign, Brain, CheckCircle2, Loader2, Clock, ChevronDown, ChevronUp } from "lucide-react";
+import { Plane, Hotel, UtensilsCrossed, MapPin, DollarSign, Car, Brain, CheckCircle2, Loader2, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface AgentStatus {
@@ -28,6 +28,7 @@ const agentIcons: Record<string, typeof Plane> = {
   restaurant_agent: UtensilsCrossed,
   attraction_agent: MapPin,
   budget_agent: DollarSign,
+  transport_agent: Car,
 };
 
 const statusColors: Record<string, string> = {
@@ -51,6 +52,7 @@ export function AgentActivityPanel({ tripId, isRunning }: AgentActivityPanelProp
     { agent_type: "restaurant_agent", emoji: "🍝", label: "Restaurant Agent", status: "idle", result_summary: null },
     { agent_type: "attraction_agent", emoji: "📍", label: "Attraction Agent", status: "idle", result_summary: null },
     { agent_type: "budget_agent", emoji: "💰", label: "Budget Agent", status: "idle", result_summary: null },
+    { agent_type: "transport_agent", emoji: "🚗", label: "Transport Agent", status: "idle", result_summary: null },
   ]);
   const [logs, setLogs] = useState<AgentLog[]>([]);
   const [showLogs, setShowLogs] = useState(false);

@@ -21,6 +21,7 @@ export interface DayPlan {
 }
 
 export interface TripPlan {
+  tripId?: string;
   destination: string;
   country: string;
   countryFlag: string;

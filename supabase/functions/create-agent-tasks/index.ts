@@ -33,6 +33,11 @@ const AGENT_DEFINITIONS = [
     task_template: (trip: any) =>
       `Analyze all collected costs (flights, hotels, activities) for the ${trip.destination_city} trip. Total budget: $${trip.estimated_budget}. Ensure itinerary stays within budget and suggest alternatives if over.`,
   },
+  {
+    agent_type: "transport_agent",
+    task_template: (trip: any) =>
+      `Analyze distances between planned attractions in ${trip.destination_city} and determine optimal transportation modes (car, bike, walk, train) for each segment. Calculate routes for all modes.`,
+  },
 ];
 
 serve(async (req) => {
@@ -87,6 +92,7 @@ serve(async (req) => {
       restaurant_agent: "restaurants_found",
       attraction_agent: "attractions_found",
       budget_agent: "budget_analysis",
+      transport_agent: "routes_optimized",
     };
 
     // Create tasks only for agents whose data doesn't exist yet

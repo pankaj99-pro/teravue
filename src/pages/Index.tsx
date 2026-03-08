@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { TripHeader } from "@/components/TripHeader";
-import { ItineraryCard, ItineraryItem } from "@/components/ItineraryCard";
-import { MapPanel, TransportMode } from "@/components/MapPanel";
+import { ItineraryCard, ItineraryItem, TravelSegment } from "@/components/ItineraryCard";
+import { MapPanel, TransportMode, RouteSegment } from "@/components/MapPanel";
 import { useItinerary } from "@/contexts/ItineraryContext";
+import { supabase } from "@/integrations/supabase/client";
 
 import airportImg from "@/assets/airport.jpg";
 import hotelImg from "@/assets/hotel.jpg";
@@ -42,7 +43,57 @@ export default function Index() {
   const [activeStop, setActiveStop] = useState(1);
   const [viewMode, setViewMode] = useState<"itinerary" | "map">("itinerary");
   const [transportMode, setTransportMode] = useState<TransportMode>("car");
+  const [dbRoutes, setDbRoutes] = useState<any[]>([]);
   const { tripPlan, isAiGenerated } = useItinerary();
+
+  // Fetch routes from database when trip is AI-generated
+  useEffect(() => {
+    if (!isAiGenerated || !tripPlan) return;
+    const fetchRoutes = async () => {
+      const { data } = await supabase
+        .from("trip_routes")
+        .select("*")
+        .eq("trip_id", tripPlan.tripId || "");
+      if (data) setDbRoutes(data);
+    };
+    fetchRoutes();
+  }, [isAiGenerated, tripPlan]);
+
+  // Build route segments from DB data
+  const routeSegments: RouteSegment[] = useMemo(() => {
+    if (dbRoutes.length === 0) return [];
+    const segMap = new Map<string, RouteSegment>();
+    for (const r of dbRoutes) {
+      const key = `${r.from_location}→${r.to_location}`;
+      if (!segMap.has(key)) {
+        segMap.set(key, { from: r.from_location, to: r.to_location, modes: [] });
+      }
+      let polyline: [number, number][] | undefined;
+      if (r.route_polyline) {
+        try { polyline = JSON.parse(r.route_polyline); } catch {}
+      }
+      segMap.get(key)!.modes.push({
+        transport_mode: r.transport_mode,
+        distance_km: r.distance_km || 0,
+        duration_minutes: r.duration_minutes || 0,
+        polyline,
+      });
+    }
+    return Array.from(segMap.values());
+  }, [dbRoutes]);
+
+  // Build travel segments for itinerary cards
+  const travelSegments: TravelSegment[] = useMemo(() => {
+    return routeSegments.map((seg) => ({
+      from: seg.from,
+      to: seg.to,
+      modes: seg.modes.map((m) => ({
+        transport_mode: m.transport_mode,
+        distance_km: m.distance_km,
+        duration_minutes: m.duration_minutes,
+      })),
+    }));
+  }, [routeSegments]);
 
   // Derive data from AI plan or fallback to demo
   const totalDays = isAiGenerated ? tripPlan!.totalDays : 5;
@@ -148,6 +199,7 @@ export default function Index() {
                   index={i}
                   isLast={i === currentItems.length - 1}
                   selectedMode={transportMode}
+                  travelSegment={travelSegments[i] || undefined}
                 />
               ))}
             </motion.div>
@@ -159,7 +211,7 @@ export default function Index() {
           className={`flex-1 ${viewMode === "itinerary" ? "hidden md:block" : ""}`}
           style={{ marginTop: viewMode === "map" ? "2.75rem" : 0 }}
         >
-          <MapPanel activeStop={activeStop} customStops={mapStops} dayTitle={dayInfo[selectedDay]?.title} selectedMode={transportMode} onModeChange={setTransportMode} />
+          <MapPanel activeStop={activeStop} customStops={mapStops} dayTitle={dayInfo[selectedDay]?.title} routeSegments={routeSegments.length > 0 ? routeSegments : undefined} selectedMode={transportMode} onModeChange={setTransportMode} />
         </div>
       </div>
     </div>
