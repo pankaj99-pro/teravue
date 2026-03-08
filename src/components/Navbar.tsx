@@ -1,22 +1,35 @@
 import { Bell, ChevronDown, Compass, MessageSquare, Map, BookOpen, Users } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 
 const navLinks = [
-  { label: "AI Chat", icon: MessageSquare },
-  { label: "Explore", icon: Compass },
-  { label: "Itinerary", icon: Map, active: true },
-  { label: "Blog", icon: BookOpen },
-  { label: "Community", icon: Users },
+  { label: "AI Chat", icon: MessageSquare, path: "/chat" },
+  { label: "Explore", icon: Compass, path: "" },
+  { label: "Itinerary", icon: Map, path: "/" },
+  { label: "Blog", icon: BookOpen, path: "" },
+  { label: "Community", icon: Users, path: "" },
 ];
 
 export function Navbar() {
-  const handleNavClick = (label: string) => {
-    toast.info(`${label} — coming soon!`);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleNavClick = (label: string, path: string) => {
+    if (path) {
+      navigate(path);
+    } else {
+      toast.info(`${label} — coming soon!`);
+    }
+  };
+
+  const isActive = (path: string) => {
+    if (!path) return false;
+    return location.pathname === path;
   };
 
   return (
     <nav className="glass-navbar fixed top-0 left-0 right-0 z-50 h-16 flex items-center px-6">
-      <div className="flex items-center gap-2 mr-8">
+      <div className="flex items-center gap-2 mr-8 cursor-pointer" onClick={() => navigate("/")}>
         <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
           <Compass className="w-4 h-4 text-primary-foreground" />
         </div>
@@ -27,9 +40,9 @@ export function Navbar() {
         {navLinks.map((link) => (
           <button
             key={link.label}
-            onClick={() => handleNavClick(link.label)}
+            onClick={() => handleNavClick(link.label, link.path)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-              link.active
+              isActive(link.path)
                 ? "bg-primary/15 text-primary border border-primary/30"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent"
             }`}
