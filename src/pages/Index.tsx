@@ -159,7 +159,7 @@ export default function Index() {
           className={`flex-1 ${viewMode === "itinerary" ? "hidden md:block" : ""}`}
           style={{ marginTop: viewMode === "map" ? "2.75rem" : 0 }}
         >
-          <MapPanel activeStop={activeStop} customStops={mapStops} dayTitle={dayInfo[selectedDay]?.title} />
+          <MapPanel activeStop={activeStop} customStops={mapStops} dayTitle={dayInfo[selectedDay]?.title} selectedMode={transportMode} onModeChange={setTransportMode} />
         </div>
       </div>
     </div>
