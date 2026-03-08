@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plane, Hotel, UtensilsCrossed, MapPin, DollarSign, Brain, CheckCircle2, Loader2, Clock, ChevronDown, ChevronUp } from "lucide-react";
+import { Plane, Hotel, UtensilsCrossed, MapPin, DollarSign, Car, Brain, CheckCircle2, Loader2, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface AgentStatus {
