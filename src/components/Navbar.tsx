@@ -139,15 +139,15 @@ export function Navbar() {
         </div>
 
         <button
-          onClick={() => toast.info("Profile settings — coming soon!")}
+          onClick={() => navigate("/profile")}
           className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full hover:bg-accent transition-colors"
         >
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-sm font-semibold text-primary-foreground">
             CS
           </div>
           <div className="hidden lg:block text-left">
-            <p className="text-sm font-medium text-foreground leading-none">Claribel Sefira</p>
-            <p className="text-xs text-muted-foreground">@firaclari</p>
+            <p className="text-sm font-medium text-foreground leading-none">Profile</p>
+            <p className="text-xs text-muted-foreground">View your profile</p>
           </div>
           <ChevronDown className="w-4 h-4 text-muted-foreground" />
         </button>
