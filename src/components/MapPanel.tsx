@@ -1,5 +1,8 @@
-import { Car, Bike, Train, Plane, Footprints, Minus, Plus, Navigation, Layers, Zap } from "lucide-react";
-import romeMap from "@/assets/rome-map.jpg";
+import { useEffect, useRef, useState } from "react";
+import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { Car, Bike, Train, Plane, Footprints, Zap } from "lucide-react";
 import airportImg from "@/assets/airport.jpg";
 import hotelImg from "@/assets/hotel.jpg";
 import restaurantImg from "@/assets/restaurant.jpg";
@@ -10,12 +13,14 @@ interface MapPanelProps {
 }
 
 const stops = [
-  { id: 1, label: "Fiumicino Airport", x: "18%", y: "82%", img: airportImg },
-  { id: 2, label: "Albergo Roma", x: "72%", y: "42%", img: hotelImg },
-  { id: 3, label: "Trattoria da Enzo", x: "55%", y: "55%", img: restaurantImg },
-  { id: 4, label: "Colosseum", x: "52%", y: "30%", img: colosseumImg },
-  { id: 5, label: "Roman Forum", x: "62%", y: "22%", img: romeMap },
+  { id: 1, label: "Fiumicino Airport", lat: 41.8003, lng: 12.2389, img: airportImg },
+  { id: 2, label: "Albergo Roma", lat: 41.8967, lng: 12.4822, img: hotelImg },
+  { id: 3, label: "Trattoria da Enzo", lat: 41.8893, lng: 12.4692, img: restaurantImg },
+  { id: 4, label: "Colosseum", lat: 41.8902, lng: 12.4922, img: colosseumImg },
+  { id: 5, label: "Roman Forum", lat: 41.8925, lng: 12.4853, img: colosseumImg },
 ];
+
+const routeCoords: [number, number][] = stops.map((s) => [s.lat, s.lng]);
 
 const transportModes = [
   { icon: Footprints, label: "Walk" },
@@ -25,59 +30,83 @@ const transportModes = [
   { icon: Plane, label: "Plane" },
 ];
 
+function createNumberedIcon(id: number, isActive: boolean) {
+  return L.divIcon({
+    className: "custom-marker",
+    html: `<div style="
+      width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      font-size:13px;font-weight:700;font-family:Inter,sans-serif;
+      background:${isActive ? "hsl(207,90%,54%)" : "hsl(222,41%,10%)"};
+      color:${isActive ? "hsl(222,47%,6%)" : "hsl(210,40%,96%)"};
+      border:2px solid ${isActive ? "hsl(207,90%,64%)" : "hsl(222,20%,22%)"};
+      box-shadow:${isActive ? "0 0 16px hsl(207,90%,54%,0.5)" : "0 2px 8px rgba(0,0,0,0.4)"};
+      transform:${isActive ? "scale(1.25)" : "scale(1)"};
+      transition:all 0.3s;
+    ">${id}</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+}
+
+function FlyToActive({ activeStop }: { activeStop: number }) {
+  const map = useMap();
+  useEffect(() => {
+    const stop = stops.find((s) => s.id === activeStop);
+    if (stop) {
+      map.flyTo([stop.lat, stop.lng], 14, { duration: 1 });
+    }
+  }, [activeStop, map]);
+  return null;
+}
+
 export function MapPanel({ activeStop }: MapPanelProps) {
   return (
     <div className="relative w-full h-full overflow-hidden bg-background">
-      {/* Map background */}
-      <img src={romeMap} alt="Rome Map" className="w-full h-full object-cover opacity-90" />
+      <MapContainer
+        center={[41.89, 12.48]}
+        zoom={12}
+        className="w-full h-full z-0"
+        zoomControl={false}
+        attributionControl={false}
+        style={{ background: "hsl(222,47%,6%)" }}
+      >
+        <TileLayer
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+        />
+        <Polyline
+          positions={routeCoords}
+          pathOptions={{
+            color: "hsl(207,90%,54%)",
+            weight: 3,
+            opacity: 0.7,
+            dashArray: "8 6",
+          }}
+        />
+        {stops.map((stop) => (
+          <Marker
+            key={stop.id}
+            position={[stop.lat, stop.lng]}
+            icon={createNumberedIcon(stop.id, activeStop === stop.id)}
+          >
+            <Popup className="dark-popup">
+              <div className="w-36 overflow-hidden rounded-lg" style={{ background: "hsl(222,41%,10%)" }}>
+                <img src={stop.img} alt={stop.label} className="w-full h-20 object-cover" />
+                <p className="text-xs p-2 text-center" style={{ color: "hsl(210,40%,96%)" }}>{stop.label}</p>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+        <FlyToActive activeStop={activeStop} />
+      </MapContainer>
 
       {/* Day label */}
-      <div className="absolute top-4 right-4 glass-panel rounded-lg px-4 py-2 text-sm text-foreground">
+      <div className="absolute top-4 right-4 z-[1000] glass-panel rounded-lg px-4 py-2 text-sm text-foreground">
         Day 1 - Arrival & Exploration <span className="text-muted-foreground ml-1">›</span>
       </div>
 
-      {/* Route line SVG overlay */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <path
-          d="M18,82 C25,70 40,60 55,55 S65,45 72,42 S58,35 52,30 S60,25 62,22"
-          fill="none"
-          stroke="hsl(207 90% 54%)"
-          strokeWidth="0.4"
-          strokeDasharray="1 0.5"
-          opacity="0.7"
-        />
-      </svg>
-
-      {/* Map stops */}
-      {stops.map((stop) => (
-        <div
-          key={stop.id}
-          className="absolute transform -translate-x-1/2 -translate-y-1/2 group"
-          style={{ left: stop.x, top: stop.y }}
-        >
-          {/* Marker */}
-          <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 cursor-pointer ${
-              activeStop === stop.id
-                ? "bg-primary text-primary-foreground scale-125 glow-primary"
-                : "bg-card/90 text-foreground border border-border hover:scale-110"
-            }`}
-          >
-            {stop.id}
-          </div>
-
-          {/* Preview on hover */}
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
-            <div className="glass-panel rounded-lg overflow-hidden w-28">
-              <img src={stop.img} alt={stop.label} className="w-full h-16 object-cover" />
-              <p className="text-[10px] text-foreground p-1.5 text-center truncate">{stop.label}</p>
-            </div>
-          </div>
-        </div>
-      ))}
-
       {/* Route info card */}
-      <div className="absolute bottom-20 right-4 glass-panel rounded-xl p-4 w-64 space-y-3">
+      <div className="absolute bottom-20 left-4 z-[1000] glass-panel rounded-xl p-4 w-64 space-y-3">
         <div className="flex items-center gap-2">
           <Car className="w-4 h-4 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">Car Route</span>
@@ -95,7 +124,7 @@ export function MapPanel({ activeStop }: MapPanelProps) {
       </div>
 
       {/* Transport mode controls */}
-      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-2">
+      <div className="absolute right-4 top-1/2 -translate-y-1/2 z-[1000] flex flex-col gap-2">
         {transportModes.map((mode) => (
           <button
             key={mode.label}
@@ -109,25 +138,6 @@ export function MapPanel({ activeStop }: MapPanelProps) {
             <mode.icon className="w-4 h-4" />
           </button>
         ))}
-      </div>
-
-      {/* Zoom + controls */}
-      <div className="absolute bottom-4 right-4 flex items-center gap-2">
-        <button className="glass-panel w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-          <Navigation className="w-4 h-4" />
-        </button>
-        <div className="glass-panel rounded-lg flex items-center">
-          <button className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-            <Minus className="w-4 h-4" />
-          </button>
-          <span className="text-xs text-muted-foreground px-1">40%</span>
-          <button className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-            <Plus className="w-4 h-4" />
-          </button>
-        </div>
-        <button className="glass-panel w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-          <Layers className="w-4 h-4" />
-        </button>
       </div>
     </div>
   );
