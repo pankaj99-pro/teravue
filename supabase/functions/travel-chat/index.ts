@@ -96,6 +96,8 @@ const ITINERARY_TOOL = {
                     "location",
                     "buttonLabel",
                     "image",
+                    "lat",
+                    "lng",
                   ],
                 },
               },

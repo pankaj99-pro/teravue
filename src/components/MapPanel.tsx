@@ -121,8 +121,9 @@ function formatDuration(min: number): string {
 }
 
 export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, selectedMode, onModeChange }: MapPanelProps) {
-  const stops = customStops && customStops.length > 0 ? customStops : defaultStops;
-  const segments = routeSegments && routeSegments.length > 0 ? routeSegments : defaultSegments;
+  const hasCustomData = customStops && customStops.length > 0;
+  const stops = hasCustomData ? customStops : defaultStops;
+  const segments = routeSegments && routeSegments.length > 0 ? routeSegments : (hasCustomData ? [] : defaultSegments);
   const center: [number, number] = stops.length > 0 ? [stops[0].lat, stops[0].lng] : [41.89, 12.48];
 
   const [showRouteCard, setShowRouteCard] = useState(true);
