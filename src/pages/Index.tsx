@@ -90,16 +90,26 @@ export default function Index() {
           <div className="md:mt-0" style={{ marginTop: 0 }}>
             <TripHeader selectedDay={selectedDay} onDayChange={setSelectedDay} />
 
-            <div className="px-6 pb-8 space-y-1">
-              {itineraryItems.map((item) => (
-                <ItineraryCard
-                  key={item.id}
-                  item={item}
-                  isActive={activeStop === item.id}
-                  onClick={() => setActiveStop(item.id)}
-                />
-              ))}
-            </div>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={selectedDay}
+                className="space-y-1"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -16 }}
+                transition={{ duration: 0.3 }}
+              >
+                {itineraryItems.map((item, i) => (
+                  <ItineraryCard
+                    key={item.id}
+                    item={item}
+                    isActive={activeStop === item.id}
+                    onClick={() => setActiveStop(item.id)}
+                    index={i}
+                  />
+                ))}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
 
