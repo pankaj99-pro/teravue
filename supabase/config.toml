@@ -53,3 +53,15 @@ verify_jwt = false
 
 [functions.get-trip-agent-status]
 verify_jwt = false
+
+[functions.create-agent-tasks]
+verify_jwt = false
+
+[functions.run-specialized-agent]
+verify_jwt = false
+
+[functions.supervisor-agent-loop]
+verify_jwt = false
+
+[functions.agent-progress-dashboard]
+verify_jwt = false
