@@ -49,10 +49,10 @@ const defaultStops: MapStop[] = [
 ];
 
 const modeConfig: Record<TransportMode, { icon: typeof Car; label: string; color: string; description: string }> = {
-  car: { icon: Car, label: "Car", color: "hsl(207,90%,54%)", description: "Fastest by road. Includes taxi and rideshare options." },
-  bike: { icon: Bike, label: "Bike", color: "hsl(142,70%,45%)", description: "Eco-friendly cycling through bike lanes and streets." },
-  walk: { icon: Footprints, label: "Walk", color: "hsl(32,95%,55%)", description: "Scenic walk — great for short distances and sightseeing." },
-  train: { icon: Train, label: "Train", color: "hsl(270,60%,55%)", description: "Metro or regional rail. Fast for longer distances." },
+  car: { icon: Car, label: "Car", color: "hsl(210,100%,60%)", description: "Fastest by road. Includes taxi and rideshare options." },
+  bike: { icon: Bike, label: "Bike", color: "hsl(142,70%,50%)", description: "Eco-friendly cycling through bike lanes and streets." },
+  walk: { icon: Footprints, label: "Walk", color: "hsl(32,95%,60%)", description: "Scenic walk — great for short distances and sightseeing." },
+  train: { icon: Train, label: "Train", color: "hsl(270,65%,60%)", description: "Metro or regional rail. Fast for longer distances." },
 };
 
 const ALL_MODES: TransportMode[] = ["walk", "bike", "car", "train"];
@@ -101,17 +101,17 @@ function createNumberedIcon(id: number, isActive: boolean) {
   return L.divIcon({
     className: "custom-marker",
     html: `<div style="
-      width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-      font-size:13px;font-weight:700;font-family:Inter,sans-serif;
-      background:${isActive ? "hsl(207,90%,54%)" : "hsl(220,15%,96%)"};
-      color:${isActive ? "#fff" : "hsl(220,15%,25%)"};
-      border:2px solid ${isActive ? "hsl(207,90%,64%)" : "hsl(220,15%,85%)"};
-      box-shadow:${isActive ? "0 0 16px hsl(207,90%,54%,0.5)" : "0 2px 6px rgba(0,0,0,0.15)"};
+      width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      font-size:13px;font-weight:700;font-family:'Space Grotesk',Inter,sans-serif;
+      background:${isActive ? "hsl(210,100%,60%)" : "hsl(225,25%,16%)"};
+      color:${isActive ? "hsl(225,30%,4%)" : "hsl(210,40%,90%)"};
+      border:2.5px solid ${isActive ? "hsl(210,100%,72%)" : "hsl(225,15%,30%)"};
+      box-shadow:${isActive ? "0 0 18px hsl(210,100%,60%,0.5)" : "0 2px 8px rgba(0,0,0,0.3)"};
       transform:${isActive ? "scale(1.25)" : "scale(1)"};
       transition:all 0.3s;
     ">${id}</div>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
   });
 }
 
@@ -180,9 +180,9 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         {stops.map((stop) => (
           <Marker key={stop.id} position={[stop.lat, stop.lng]} icon={createNumberedIcon(stop.id, activeStop === stop.id)}>
             <Popup>
-              <div className="w-36 overflow-hidden rounded-lg bg-white">
+              <div className="w-40 overflow-hidden rounded-lg">
                 <img src={stop.img} alt={stop.label} className="w-full h-20 object-cover" />
-                <p className="text-xs p-2 text-center text-gray-800 font-medium">{stop.label}</p>
+                <p className="text-xs p-2.5 text-center text-foreground font-medium font-display">{stop.label}</p>
               </div>
             </Popup>
           </Marker>
@@ -191,15 +191,15 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
       </MapContainer>
 
       {/* Day label */}
-      <div className="absolute top-4 right-4 z-[1000] bg-white/90 backdrop-blur-md border border-border/30 shadow-sm rounded-lg px-4 py-2 text-sm text-foreground font-medium">
-        {dayTitle || "Day 1 - Arrival & Exploration"} <span className="text-muted-foreground ml-1">›</span>
+      <div className="absolute top-4 right-4 z-[1000] bg-card/90 backdrop-blur-md border border-glass-border shadow-lg rounded-xl px-4 py-2.5 text-sm text-foreground font-semibold font-display">
+        {dayTitle || "Day 1 - Arrival & Exploration"} <span className="text-primary ml-1">›</span>
       </div>
 
       {/* Route info card */}
       <AnimatePresence>
         {showRouteCard && (
           <motion.div
-            className="absolute bottom-20 left-4 z-[1000] bg-white/90 backdrop-blur-md border border-border/30 shadow-lg rounded-xl p-4 w-72 space-y-3"
+            className="absolute bottom-20 left-4 z-[1000] bg-card/92 backdrop-blur-xl border border-glass-border shadow-2xl rounded-xl p-4 w-72 space-y-3"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
@@ -285,10 +285,10 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
             <button
               key={mode}
               onClick={() => handleModeChange(mode)}
-              className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 active:scale-90 ${
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-90 ${
                 isSelected
-                  ? "text-white shadow-md"
-                  : "bg-white/80 backdrop-blur-sm border border-border/30 text-muted-foreground hover:text-foreground hover:bg-white shadow-sm"
+                  ? "text-white shadow-lg"
+                  : "bg-card/80 backdrop-blur-sm border border-glass-border text-muted-foreground hover:text-foreground hover:bg-accent shadow-md"
               }`}
               style={isSelected ? { background: mc.color } : undefined}
               title={mc.label}

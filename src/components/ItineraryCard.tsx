@@ -116,7 +116,7 @@ export function ItineraryCard({ item, isActive, onClick, index, isLast, travelSe
             />
             <div className="flex-1 min-w-0">
               <p className="text-[10px] md:text-xs text-muted-foreground">{item.time}</p>
-              <h3 className="text-xs md:text-sm font-semibold text-foreground mt-0.5 leading-snug">{item.title}</h3>
+              <h3 className="text-xs md:text-sm font-semibold text-foreground mt-0.5 leading-snug font-display">{item.title}</h3>
               <div className="flex items-center gap-1 mt-1 text-[10px] md:text-xs text-muted-foreground">
                 <MapPin className="w-3 h-3 flex-shrink-0" />
                 <span className="truncate">{item.location}</span>
