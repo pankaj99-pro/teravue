@@ -57,7 +57,7 @@ export function ItineraryCard({ item, isActive, onClick, index }: ItineraryCardP
       {/* Card */}
       <motion.div
         onClick={onClick}
-        className={`flex-1 glass-panel rounded-xl p-2.5 cursor-pointer card-hover ${
+        className={`flex-1 glass-panel rounded-xl p-3 cursor-pointer card-hover min-w-0 ${
           isActive ? "border-primary/40 bg-primary/5" : ""
         }`}
         whileHover={{ scale: 1.02, y: -1 }}
@@ -67,11 +67,11 @@ export function ItineraryCard({ item, isActive, onClick, index }: ItineraryCardP
         }}
         transition={{ type: "spring", stiffness: 400, damping: 25 }}
       >
-        <div className="flex gap-2.5 items-start">
+        <div className="flex gap-3 items-center">
           <motion.img
             src={item.image}
             alt={item.title}
-            className="w-16 h-16 md:w-18 md:h-18 rounded-lg object-cover flex-shrink-0"
+            className="w-14 h-14 rounded-lg object-cover flex-shrink-0"
             whileHover={{ scale: 1.05 }}
             transition={{ duration: 0.2 }}
           />
@@ -83,23 +83,27 @@ export function ItineraryCard({ item, isActive, onClick, index }: ItineraryCardP
               <MapPin className="w-3 h-3 flex-shrink-0" />
               <span className="truncate">{item.location}</span>
             </div>
-            {item.price && (
-              <div className="flex items-center gap-1 mt-0.5 text-[10px] md:text-xs">
-                <DollarSign className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                <span className="text-secondary font-medium">{item.price}</span>
-                {item.priceLabel && <span className="text-muted-foreground">{item.priceLabel}</span>}
-              </div>
-            )}
-
-            <motion.button
-              onClick={handleButtonClick}
-              className="mt-2 inline-flex max-w-full px-2.5 py-1 rounded-lg border border-primary/40 text-primary text-[10px] md:text-xs font-medium hover:bg-primary/10 transition-colors"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <span className="truncate">{item.buttonLabel}</span>
-            </motion.button>
+            <div className="flex items-center gap-1 mt-0.5 text-[10px] md:text-xs h-4">
+              {item.price ? (
+                <>
+                  <DollarSign className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                  <span className="text-secondary font-medium">{item.price}</span>
+                  {item.priceLabel && <span className="text-muted-foreground">{item.priceLabel}</span>}
+                </>
+              ) : (
+                item.priceLabel && <span className="text-muted-foreground">{item.priceLabel}</span>
+              )}
+            </div>
           </div>
+
+          <motion.button
+            onClick={handleButtonClick}
+            className="flex-shrink-0 px-3 py-1.5 rounded-lg border border-primary/40 text-primary text-[10px] md:text-xs font-medium hover:bg-primary/10 transition-colors whitespace-nowrap"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            {item.buttonLabel}
+          </motion.button>
         </div>
       </motion.div>
     </motion.div>
