@@ -234,16 +234,22 @@ export default function AiChat() {
     const assistantId = `ai-${Date.now()}`;
     let finalToolCalls: ToolCallStatus[] = [];
 
-    const upsertAssistant = (chunk: string) => {
-      assistantContent += chunk;
-      const content = assistantContent;
+    let assistantMessageCreated = false;
+
+    const ensureAssistantMessage = (content: string) => {
       updateSessionMessages(sessionId!, (msgs) => {
-        const last = msgs[msgs.length - 1];
-        if (last?.id === assistantId) {
+        const existing = msgs.find((m) => m.id === assistantId);
+        if (existing) {
           return msgs.map((m) => (m.id === assistantId ? { ...m, content } : m));
         }
+        assistantMessageCreated = true;
         return [...msgs, { id: assistantId, role: "assistant" as const, content, timestamp: new Date() }];
       });
+    };
+
+    const upsertAssistant = (chunk: string) => {
+      assistantContent += chunk;
+      ensureAssistantMessage(assistantContent);
     };
 
     try {
@@ -253,6 +259,10 @@ export default function AiChat() {
           const tc: ToolCallStatus = { name, status: "running" };
           setActiveToolCalls((prev) => [...prev, tc]);
           finalToolCalls = [...finalToolCalls, tc];
+          // Create assistant message placeholder if none exists yet
+          if (!assistantContent) {
+            ensureAssistantMessage("");
+          }
         },
         onToolCall: async (name, args) => {
           // Mark tool as done
