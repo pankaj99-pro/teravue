@@ -83,3 +83,23 @@
     @apply transition-all duration-300 hover:bg-accent/80 hover:border-primary/30;
   }
 }
+
+/* Leaflet dark popup overrides */
+.leaflet-popup-content-wrapper {
+  background: hsl(222 41% 10% / 0.9) !important;
+  border: 1px solid hsl(222 20% 22%) !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+  padding: 0 !important;
+  backdrop-filter: blur(12px);
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+}
+.leaflet-popup-tip {
+  background: hsl(222 41% 10% / 0.9) !important;
+  border: 1px solid hsl(222 20% 22%) !important;
+}
+.leaflet-container {
+  font-family: 'Inter', sans-serif;
+}
