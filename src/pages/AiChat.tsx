@@ -318,11 +318,24 @@ export default function AiChat() {
         },
         onDone: () => {
           setIsTyping(false);
+
+          // Ensure the assistant message has tool call info attached
+          if (finalToolCalls.length > 0) {
+            updateSessionMessages(sessionId!, (msgs) =>
+              msgs.map((m) =>
+                m.id === assistantId
+                  ? { ...m, toolCalls: finalToolCalls }
+                  : m
+              )
+            );
+          }
+
           // Save assistant message to DB
+          const hasItinerary = finalToolCalls.some((tc) => tc.name === "create_itinerary" && tc.status === "done");
           saveMessageToDB(sessionId!, {
             role: "assistant",
-            content: assistantContent,
-            hasItinerary: finalToolCalls.some((tc) => tc.name === "create_itinerary" && tc.status === "done"),
+            content: assistantContent || (hasItinerary ? "Your itinerary has been created!" : ""),
+            hasItinerary,
             toolCalls: finalToolCalls,
           });
           // Keep tool call indicators visible for 2.5s so user sees the green checkmark
