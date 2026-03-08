@@ -224,7 +224,8 @@ export default function AiChat() {
         </div>
 
         {/* Chat area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto scrollbar-hide">
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center px-4">
