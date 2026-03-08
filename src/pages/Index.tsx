@@ -31,9 +31,9 @@ const defaultDayInfo: Record<number, { date: string; title: string }> = {
 };
 
 const defaultItems: ItineraryItem[] = [
-  { id: 1, time: "10:30 AM", title: "Fiumicino Airport (Arrival)", location: "Leonardo da Vinci Intl. Airport", priceLabel: "Included in Flight Ticket", buttonLabel: "Book a Flight", image: airportImg, travelMode: "car", travelDuration: "35 min" },
-  { id: 2, time: "12:00 PM", title: "Albergo Roma (Hotel Check-in)", location: "City Center, Rome", price: "$130.00", priceLabel: "per night", buttonLabel: "View Booking", image: hotelImg, travelMode: "walk", travelDuration: "12 min" },
-  { id: 3, time: "1:00 PM", title: "Trattoria da Enzo al 29 (Lunch)", location: "Trastevere, Rome", price: "$27.00", priceLabel: "per person", buttonLabel: "Reserve Table", image: restaurantImg, travelMode: "train", travelDuration: "18 min" },
+  { id: 1, time: "10:30 AM", title: "Fiumicino Airport (Arrival)", location: "Leonardo da Vinci Intl. Airport", priceLabel: "Included in Flight Ticket", buttonLabel: "Book a Flight", image: airportImg },
+  { id: 2, time: "12:00 PM", title: "Albergo Roma (Hotel Check-in)", location: "City Center, Rome", price: "$130.00", priceLabel: "per night", buttonLabel: "View Booking", image: hotelImg },
+  { id: 3, time: "1:00 PM", title: "Trattoria da Enzo al 29 (Lunch)", location: "Trastevere, Rome", price: "$27.00", priceLabel: "per person", buttonLabel: "Reserve Table", image: restaurantImg },
   { id: 4, time: "3:00 PM", title: "Colosseum & Roman Forum", location: "Piazza del Colosseo, Rome", price: "$20.00", priceLabel: "per ticket", buttonLabel: "Book Ticket", image: colosseumImg },
 ];
 
