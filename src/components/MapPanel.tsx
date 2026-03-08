@@ -101,17 +101,17 @@ function createNumberedIcon(id: number, isActive: boolean) {
   return L.divIcon({
     className: "custom-marker",
     html: `<div style="
-      width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-      font-size:13px;font-weight:700;font-family:Inter,sans-serif;
-      background:${isActive ? "hsl(207,90%,54%)" : "hsl(220,15%,96%)"};
-      color:${isActive ? "#fff" : "hsl(220,15%,25%)"};
-      border:2px solid ${isActive ? "hsl(207,90%,64%)" : "hsl(220,15%,85%)"};
-      box-shadow:${isActive ? "0 0 16px hsl(207,90%,54%,0.5)" : "0 2px 6px rgba(0,0,0,0.15)"};
+      width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      font-size:13px;font-weight:700;font-family:'Space Grotesk',Inter,sans-serif;
+      background:${isActive ? "hsl(210,100%,60%)" : "hsl(225,25%,16%)"};
+      color:${isActive ? "hsl(225,30%,4%)" : "hsl(210,40%,90%)"};
+      border:2.5px solid ${isActive ? "hsl(210,100%,72%)" : "hsl(225,15%,30%)"};
+      box-shadow:${isActive ? "0 0 18px hsl(210,100%,60%,0.5)" : "0 2px 8px rgba(0,0,0,0.3)"};
       transform:${isActive ? "scale(1.25)" : "scale(1)"};
       transition:all 0.3s;
     ">${id}</div>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
   });
 }
 
