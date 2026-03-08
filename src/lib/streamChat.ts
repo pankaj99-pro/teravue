@@ -80,6 +80,13 @@ export async function streamTravelChat(messages: ChatMessage[], callbacks: Strea
         const choice = parsed.choices?.[0];
         if (!choice) continue;
 
+        // Handle error finish reasons (e.g. MALFORMED_FUNCTION_CALL from Gemini)
+        if (choice.finish_reason === "error") {
+          console.error("Stream finish_reason error:", choice.native_finish_reason);
+          callbacks.onError("AI failed to generate the itinerary. Please try again.");
+          return;
+        }
+
         const delta = choice.delta;
         if (delta?.content) {
           callbacks.onDelta(delta.content);
