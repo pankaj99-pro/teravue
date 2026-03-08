@@ -49,10 +49,10 @@ const defaultStops: MapStop[] = [
 ];
 
 const modeConfig: Record<TransportMode, { icon: typeof Car; label: string; color: string; description: string }> = {
-  car: { icon: Car, label: "Car", color: "hsl(207,90%,54%)", description: "Fastest by road. Includes taxi and rideshare options." },
-  bike: { icon: Bike, label: "Bike", color: "hsl(142,70%,45%)", description: "Eco-friendly cycling through bike lanes and streets." },
-  walk: { icon: Footprints, label: "Walk", color: "hsl(32,95%,55%)", description: "Scenic walk — great for short distances and sightseeing." },
-  train: { icon: Train, label: "Train", color: "hsl(270,60%,55%)", description: "Metro or regional rail. Fast for longer distances." },
+  car: { icon: Car, label: "Car", color: "hsl(210,100%,60%)", description: "Fastest by road. Includes taxi and rideshare options." },
+  bike: { icon: Bike, label: "Bike", color: "hsl(142,70%,50%)", description: "Eco-friendly cycling through bike lanes and streets." },
+  walk: { icon: Footprints, label: "Walk", color: "hsl(32,95%,60%)", description: "Scenic walk — great for short distances and sightseeing." },
+  train: { icon: Train, label: "Train", color: "hsl(270,65%,60%)", description: "Metro or regional rail. Fast for longer distances." },
 };
 
 const ALL_MODES: TransportMode[] = ["walk", "bike", "car", "train"];
