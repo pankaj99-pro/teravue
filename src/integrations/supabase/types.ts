@@ -185,6 +185,57 @@ export type Database = {
           },
         ]
       }
+      agent_tasks: {
+        Row: {
+          agent_run_id: string | null
+          agent_type: string
+          created_at: string
+          id: string
+          result_summary: string | null
+          status: string
+          task_description: string
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          agent_run_id?: string | null
+          agent_type: string
+          created_at?: string
+          id?: string
+          result_summary?: string | null
+          status?: string
+          task_description: string
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          agent_run_id?: string | null
+          agent_type?: string
+          created_at?: string
+          id?: string
+          result_summary?: string | null
+          status?: string
+          task_description?: string
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_tasks_agent_run_id_fkey"
+            columns: ["agent_run_id"]
+            isOneToOne: false
+            referencedRelation: "agent_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           activity_id: string | null
