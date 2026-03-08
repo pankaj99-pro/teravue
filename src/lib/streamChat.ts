@@ -55,11 +55,11 @@ export async function streamTravelChat(messages: ChatMessage[], callbacks: Strea
 
       const jsonStr = line.slice(6).trim();
       if (jsonStr === "[DONE]") {
-        // If we accumulated a tool call, fire it
+        // If we accumulated a tool call, fire it and await
         if (toolCallName && toolCallArgs) {
           try {
             const parsed = JSON.parse(toolCallArgs);
-            callbacks.onToolCall(toolCallName, parsed);
+            await callbacks.onToolCall(toolCallName, parsed);
           } catch {
             console.error("Failed to parse tool call args:", toolCallArgs);
           }
