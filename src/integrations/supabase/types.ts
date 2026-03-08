@@ -67,6 +67,79 @@ export type Database = {
           },
         ]
       }
+      agent_memory: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          memory_type: string
+          trip_id: string | null
+          user_id: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          id?: string
+          memory_type: string
+          trip_id?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          memory_type?: string
+          trip_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_memory_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_runs: {
+        Row: {
+          context_json: Json | null
+          created_at: string
+          current_step: string
+          id: string
+          status: string
+          trip_id: string | null
+          user_id: string
+        }
+        Insert: {
+          context_json?: Json | null
+          created_at?: string
+          current_step?: string
+          id?: string
+          status?: string
+          trip_id?: string | null
+          user_id: string
+        }
+        Update: {
+          context_json?: Json | null
+          created_at?: string
+          current_step?: string
+          id?: string
+          status?: string
+          trip_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_runs_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           activity_id: string | null

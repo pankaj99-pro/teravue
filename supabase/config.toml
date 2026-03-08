@@ -26,3 +26,18 @@ verify_jwt = false
 
 [functions.optimize-route]
 verify_jwt = false
+
+[functions.agent-brain]
+verify_jwt = false
+
+[functions.agent-execute-tool]
+verify_jwt = false
+
+[functions.agent-itinerary-builder]
+verify_jwt = false
+
+[functions.agent-loop]
+verify_jwt = false
+
+[functions.trip-monitor]
+verify_jwt = false
