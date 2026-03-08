@@ -82,20 +82,17 @@ export default function Index() {
       <div className="flex-1 pt-16 flex flex-col md:flex-row overflow-hidden">
         {/* Left: Itinerary */}
         <div
-          className={`w-full md:w-[42%] lg:w-[38%] border-r border-border flex flex-col overflow-y-auto scrollbar-hide ${
-            viewMode === "map" ? "hidden md:flex" : "flex"
+          className={`w-full md:w-[42%] lg:w-[38%] border-r border-border overflow-y-auto scrollbar-hide ${
+            viewMode === "map" ? "hidden md:block" : ""
           }`}
           style={{ marginTop: viewMode === "itinerary" ? "2.75rem" : 0 }}
         >
-          <div className="flex-shrink-0">
-            <TripHeader selectedDay={selectedDay} onDayChange={setSelectedDay} />
-          </div>
+          <TripHeader selectedDay={selectedDay} onDayChange={setSelectedDay} />
 
-          <div className="flex-1 overflow-y-auto scrollbar-hide">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={selectedDay}
-                className="px-4 md:px-6 pb-4 space-y-0.5"
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={selectedDay}
+              className="px-4 md:px-6 pb-8 space-y-0.5"
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -16 }}
