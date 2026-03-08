@@ -476,7 +476,7 @@ export default function AiChat() {
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                           >
-                            <Map className="w-4 h-4" />
+                            <MapIcon className="w-4 h-4" />
                             View Itinerary on Map
                           </motion.button>
                         )}
