@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Users, DollarSign, ChevronLeft, Plus, Download, Share2, MoreVertical, Pencil } from "lucide-react";
 
 interface TripHeaderProps {
@@ -5,8 +6,17 @@ interface TripHeaderProps {
   onDayChange: (day: number) => void;
 }
 
+const dayInfo: Record<number, { date: string; title: string }> = {
+  1: { date: "October 12", title: "Arrival & Exploration" },
+  2: { date: "October 13", title: "Ancient Rome Tour" },
+  3: { date: "October 14", title: "Vatican & Museums" },
+  4: { date: "October 15", title: "Trastevere & Food Tour" },
+  5: { date: "October 16", title: "Departure Day" },
+};
+
 export function TripHeader({ selectedDay, onDayChange }: TripHeaderProps) {
   const days = [1, 2, 3, 4, 5];
+  const info = dayInfo[selectedDay];
 
   return (
     <div className="p-6 space-y-5">
@@ -18,9 +28,14 @@ export function TripHeader({ selectedDay, onDayChange }: TripHeaderProps) {
         </button>
         <div className="flex items-center gap-2">
           {[Plus, Download, Share2, MoreVertical].map((Icon, i) => (
-            <button key={i} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+            <motion.button
+              key={i}
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
               <Icon className="w-4 h-4" />
-            </button>
+            </motion.button>
           ))}
         </div>
       </div>
@@ -52,34 +67,51 @@ export function TripHeader({ selectedDay, onDayChange }: TripHeaderProps) {
         </span>
       </div>
 
-      {/* Day selector + label */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {days.map((day) => (
-            <button
-              key={day}
-              onClick={() => onDayChange(day)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
-                selectedDay === day
-                  ? "bg-primary/15 text-primary border border-primary/30"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent"
-              }`}
-            >
-              Day {day}
-            </button>
-          ))}
-        </div>
+      {/* Day selector */}
+      <div className="flex items-center gap-3 relative">
+        {days.map((day) => (
+          <button
+            key={day}
+            onClick={() => onDayChange(day)}
+            className={`relative px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors duration-200 ${
+              selectedDay === day
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground border border-transparent"
+            }`}
+          >
+            {selectedDay === day && (
+              <motion.div
+                className="absolute inset-0 rounded-full bg-primary/15 border border-primary/30"
+                layoutId="daySelector"
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              />
+            )}
+            <span className="relative z-10">Day {day}</span>
+          </button>
+        ))}
       </div>
 
-      {/* Day title */}
+      {/* Day title - animated */}
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground">October 12</p>
-          <h2 className="text-lg font-semibold text-foreground">Arrival & Exploration</h2>
-        </div>
-        <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={selectedDay}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25 }}
+          >
+            <p className="text-xs text-muted-foreground">{info.date}</p>
+            <h2 className="text-lg font-semibold text-foreground">{info.title}</h2>
+          </motion.div>
+        </AnimatePresence>
+        <motion.button
+          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+        >
           <Pencil className="w-4 h-4" />
-        </button>
+        </motion.button>
       </div>
     </div>
   );
