@@ -67,7 +67,7 @@ export function ItineraryCard({ item, isActive, onClick, index }: ItineraryCardP
         }}
         transition={{ type: "spring", stiffness: 400, damping: 25 }}
       >
-        <div className="flex gap-2.5">
+        <div className="flex gap-2.5 items-start">
           <motion.img
             src={item.image}
             alt={item.title}
@@ -90,16 +90,16 @@ export function ItineraryCard({ item, isActive, onClick, index }: ItineraryCardP
                 {item.priceLabel && <span className="text-muted-foreground">{item.priceLabel}</span>}
               </div>
             )}
-          </div>
 
-          <motion.button
-            onClick={handleButtonClick}
-            className="self-center flex-shrink-0 px-2.5 py-1 rounded-lg border border-primary/40 text-primary text-[10px] md:text-xs font-medium hover:bg-primary/10 transition-colors whitespace-nowrap"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            {item.buttonLabel}
-          </motion.button>
+            <motion.button
+              onClick={handleButtonClick}
+              className="mt-2 inline-flex max-w-full px-2.5 py-1 rounded-lg border border-primary/40 text-primary text-[10px] md:text-xs font-medium hover:bg-primary/10 transition-colors"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <span className="truncate">{item.buttonLabel}</span>
+            </motion.button>
+          </div>
         </div>
       </motion.div>
     </motion.div>
