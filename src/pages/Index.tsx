@@ -199,6 +199,7 @@ export default function Index() {
                   index={i}
                   isLast={i === currentItems.length - 1}
                   selectedMode={transportMode}
+                  travelSegment={travelSegments[i] || undefined}
                 />
               ))}
             </motion.div>
