@@ -154,7 +154,9 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
     title: d.summary || `Day ${d.day_number}`,
     stops: (d.activities || []).map((a: any, i: number) => ({
       id: i + 1,
-      time: a.start_time || "",
+      time: a.start_time
+        ? new Date(a.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+        : "",
       title: a.title,
       location: a.location_name || "",
       price: a.price_estimate ? `$${a.price_estimate.toFixed(2)}` : undefined,
