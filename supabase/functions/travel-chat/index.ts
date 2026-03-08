@@ -21,6 +21,7 @@ Guidelines for itineraries:
 - Always include arrival/departure logistics
 - Use descriptive titles like "Senso-ji Temple (Morning Visit)" not just "Temple"
 - All text fields MUST be in English
+- CRITICAL: Every stop MUST include accurate "lat" and "lng" coordinates. Look up real GPS coordinates for each location. Without coordinates the map cannot display routes.
 
 For the image field, use one of these categories to match the stop type:
 - "airport" for airports/flights
