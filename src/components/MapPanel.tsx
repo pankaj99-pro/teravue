@@ -206,46 +206,47 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
             transition={{ duration: 0.2 }}
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: `${config.color}20` }}>
-                  <ModeIcon className="w-3.5 h-3.5" style={{ color: config.color }} />
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${config.color}20` }}>
+                  <ModeIcon className="w-4 h-4" style={{ color: config.color }} />
                 </div>
-                <span className="text-xs font-medium text-foreground">{config.label} Route</span>
+                <span className="text-sm font-semibold text-foreground font-display">{config.label} Route</span>
               </div>
               <button
                 onClick={() => setShowRouteCard(false)}
-                className="w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="flex items-baseline gap-3">
-              <p className="text-xl font-bold text-foreground">{totals.duration}</p>
-              <p className="text-xs text-muted-foreground">{totals.distance} km total</p>
+              <p className="text-2xl font-bold text-foreground font-display">{totals.duration}</p>
+              <p className="text-sm text-muted-foreground font-medium">{totals.distance} km total</p>
             </div>
 
-            <div className="flex items-start gap-2">
-              <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground leading-relaxed">{config.description}</p>
+            <div className="flex items-start gap-2.5 bg-muted/30 rounded-lg px-3 py-2.5">
+              <Zap className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-foreground/80 leading-relaxed">{config.description}</p>
             </div>
 
             {/* Segment breakdown */}
-            <div className="space-y-1.5 pt-1 border-t border-border/30">
+            <div className="space-y-2 pt-2 border-t border-border/40">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Segments</p>
               {segments.map((seg, i) => {
                 const modeData = seg.modes.find((m) => m.transport_mode === selectedMode);
                 if (!modeData) return null;
                 return (
-                  <div key={i} className="flex items-center justify-between text-[10px]">
-                    <span className="text-muted-foreground truncate flex-1 mr-2">{seg.from} → {seg.to}</span>
-                    <span className="text-foreground font-medium whitespace-nowrap">{formatDuration(modeData.duration_minutes)}</span>
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <span className="text-foreground/70 truncate flex-1 mr-3">{seg.from} → {seg.to}</span>
+                    <span className="text-foreground font-semibold whitespace-nowrap">{formatDuration(modeData.duration_minutes)}</span>
                   </div>
                 );
               })}
             </div>
 
             {/* Mode comparison */}
-            <div className="grid grid-cols-4 gap-1 pt-1 border-t border-border/30">
+            <div className="grid grid-cols-4 gap-1.5 pt-2 border-t border-border/40">
               {ALL_MODES.map((mode) => {
                 const mc = modeConfig[mode];
                 const Icon = mc.icon;
@@ -259,12 +260,12 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
                   <button
                     key={mode}
                     onClick={() => handleModeChange(mode)}
-                    className={`flex flex-col items-center gap-0.5 py-1.5 rounded-lg transition-colors ${
-                      isSelected ? "bg-primary/10" : "hover:bg-muted/30"
+                    className={`flex flex-col items-center gap-1 py-2 rounded-lg transition-all ${
+                      isSelected ? "bg-primary/15 border border-primary/30" : "hover:bg-muted/40 border border-transparent"
                     }`}
                   >
-                    <Icon className="w-3.5 h-3.5" style={{ color: isSelected ? mc.color : undefined }} />
-                    <span className={`text-[9px] font-medium ${isSelected ? "text-foreground" : "text-muted-foreground"}`}>
+                    <Icon className="w-4 h-4" style={{ color: isSelected ? mc.color : "hsl(215,20%,55%)" }} />
+                    <span className={`text-[10px] font-semibold ${isSelected ? "text-foreground" : "text-muted-foreground"}`}>
                       {formatDuration(totalDur)}
                     </span>
                   </button>
