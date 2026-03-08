@@ -157,10 +157,23 @@ export default function AiChat() {
     try {
       await streamTravelChat(history, {
         onDelta: (chunk) => upsertAssistant(chunk),
-        onToolCall: (name, args) => {
+        onToolCall: async (name, args) => {
           if (name === "create_itinerary") {
+            // Save to database if user is authenticated
+            let savedTripId: string | undefined;
+            if (user) {
+              const tripId = await saveTripToDatabase(args, user.id);
+              if (tripId) {
+                savedTripId = tripId;
+                args.tripId = tripId;
+              }
+            }
+
             setTripPlan(args);
-            toast.success("✨ Itinerary generated! View it on the Itinerary page.");
+            toast.success(savedTripId
+              ? "✨ Itinerary generated and saved! View it on the Itinerary page."
+              : "✨ Itinerary generated! Sign in to save your trips."
+            );
             // Mark session and message
             setSessions((prev) =>
               prev.map((s) =>
