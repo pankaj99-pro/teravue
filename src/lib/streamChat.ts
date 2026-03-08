@@ -69,6 +69,14 @@ export async function streamTravelChat(messages: ChatMessage[], callbacks: Strea
 
       try {
         const parsed = JSON.parse(jsonStr);
+
+        // Handle SSE error chunks from provider
+        if (parsed.error) {
+          console.error("SSE stream error:", parsed.error);
+          callbacks.onError(parsed.error.message || "AI provider error. Please try again.");
+          return;
+        }
+
         const choice = parsed.choices?.[0];
         if (!choice) continue;
 
