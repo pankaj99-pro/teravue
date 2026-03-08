@@ -40,63 +40,9 @@ interface MapPanelProps {
   onModeChange: (mode: TransportMode) => void;
 }
 
-const defaultStops: MapStop[] = [
-  { id: 1, label: "Fiumicino Airport", lat: 41.8003, lng: 12.2389, img: airportImg },
-  { id: 2, label: "Albergo Roma", lat: 41.8967, lng: 12.4822, img: hotelImg },
-  { id: 3, label: "Trattoria da Enzo", lat: 41.8893, lng: 12.4692, img: restaurantImg },
-  { id: 4, label: "Colosseum", lat: 41.8902, lng: 12.4922, img: colosseumImg },
-  { id: 5, label: "Roman Forum", lat: 41.8925, lng: 12.4853, img: colosseumImg },
-];
+const defaultStops: MapStop[] = [];
 
-const modeConfig: Record<TransportMode, { icon: typeof Car; label: string; color: string; description: string }> = {
-  car: { icon: Car, label: "Car", color: "hsl(210,100%,60%)", description: "Fastest by road. Includes taxi and rideshare options." },
-  bike: { icon: Bike, label: "Bike", color: "hsl(142,70%,50%)", description: "Eco-friendly cycling through bike lanes and streets." },
-  walk: { icon: Footprints, label: "Walk", color: "hsl(32,95%,60%)", description: "Scenic walk — great for short distances and sightseeing." },
-  train: { icon: Train, label: "Train", color: "hsl(270,65%,60%)", description: "Metro or regional rail. Fast for longer distances." },
-};
-
-const ALL_MODES: TransportMode[] = ["walk", "bike", "car", "train"];
-
-// Default demo route segments
-const defaultSegments: RouteSegment[] = [
-  {
-    from: "Fiumicino Airport", to: "Albergo Roma",
-    modes: [
-      { transport_mode: "car", distance_km: 32, duration_minutes: 40 },
-      { transport_mode: "train", distance_km: 35, duration_minutes: 35 },
-      { transport_mode: "bike", distance_km: 30, duration_minutes: 95 },
-      { transport_mode: "walk", distance_km: 29, duration_minutes: 360 },
-    ],
-  },
-  {
-    from: "Albergo Roma", to: "Trattoria da Enzo",
-    modes: [
-      { transport_mode: "car", distance_km: 2.5, duration_minutes: 8 },
-      { transport_mode: "bike", distance_km: 2.8, duration_minutes: 10 },
-      { transport_mode: "walk", distance_km: 2.3, duration_minutes: 28 },
-      { transport_mode: "train", distance_km: 3.1, duration_minutes: 12 },
-    ],
-  },
-  {
-    from: "Trattoria da Enzo", to: "Colosseum",
-    modes: [
-      { transport_mode: "car", distance_km: 3.2, duration_minutes: 10 },
-      { transport_mode: "bike", distance_km: 3.5, duration_minutes: 12 },
-      { transport_mode: "walk", distance_km: 2.9, duration_minutes: 35 },
-      { transport_mode: "train", distance_km: 4, duration_minutes: 15 },
-    ],
-  },
-  {
-    from: "Colosseum", to: "Roman Forum",
-    modes: [
-      { transport_mode: "car", distance_km: 0.5, duration_minutes: 3 },
-      { transport_mode: "bike", distance_km: 0.5, duration_minutes: 2 },
-      { transport_mode: "walk", distance_km: 0.4, duration_minutes: 5 },
-      { transport_mode: "train", distance_km: 0.8, duration_minutes: 5 },
-    ],
-  },
-];
-
+const defaultSegments: RouteSegment[] = [];
 function createNumberedIcon(id: number, isActive: boolean) {
   return L.divIcon({
     className: "custom-marker",
