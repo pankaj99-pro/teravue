@@ -9,6 +9,7 @@ const corsHeaders = {
 
 // Agents that must complete before budget analysis
 const SEARCH_AGENTS = ["flight_agent", "hotel_agent", "restaurant_agent", "attraction_agent"];
+const POST_ITINERARY_AGENTS = ["transport_agent"];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
