@@ -59,28 +59,61 @@ export default function Index() {
     fetchRoutes();
   }, [isAiGenerated, tripPlan]);
 
-  // Build route segments from DB data
+  // Build route segments from DB data or derive from itinerary stops
   const routeSegments: RouteSegment[] = useMemo(() => {
-    if (dbRoutes.length === 0) return [];
-    const segMap = new Map<string, RouteSegment>();
-    for (const r of dbRoutes) {
-      const key = `${r.from_location}→${r.to_location}`;
-      if (!segMap.has(key)) {
-        segMap.set(key, { from: r.from_location, to: r.to_location, modes: [] });
+    if (dbRoutes.length > 0) {
+      const segMap = new Map<string, RouteSegment>();
+      for (const r of dbRoutes) {
+        const key = `${r.from_location}→${r.to_location}`;
+        if (!segMap.has(key)) {
+          segMap.set(key, { from: r.from_location, to: r.to_location, modes: [] });
+        }
+        let polyline: [number, number][] | undefined;
+        if (r.route_polyline) {
+          try { polyline = JSON.parse(r.route_polyline); } catch {}
+        }
+        segMap.get(key)!.modes.push({
+          transport_mode: r.transport_mode,
+          distance_km: r.distance_km || 0,
+          duration_minutes: r.duration_minutes || 0,
+          polyline,
+        });
       }
-      let polyline: [number, number][] | undefined;
-      if (r.route_polyline) {
-        try { polyline = JSON.parse(r.route_polyline); } catch {}
-      }
-      segMap.get(key)!.modes.push({
-        transport_mode: r.transport_mode,
-        distance_km: r.distance_km || 0,
-        duration_minutes: r.duration_minutes || 0,
-        polyline,
-      });
+      return Array.from(segMap.values());
     }
-    return Array.from(segMap.values());
-  }, [dbRoutes]);
+
+    // Derive segments from current itinerary stops when no DB routes
+    if (isAiGenerated && tripPlan) {
+      const dayPlan = tripPlan.days.find((d) => d.day === selectedDay);
+      if (!dayPlan || dayPlan.stops.length < 2) return [];
+      const segs: RouteSegment[] = [];
+      for (let i = 0; i < dayPlan.stops.length - 1; i++) {
+        const from = dayPlan.stops[i];
+        const to = dayPlan.stops[i + 1];
+        if (!from.lat || !from.lng || !to.lat || !to.lng) continue;
+        // Haversine-based estimate
+        const R = 6371;
+        const dLat = ((to.lat! - from.lat!) * Math.PI) / 180;
+        const dLng = ((to.lng! - from.lng!) * Math.PI) / 180;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos((from.lat! * Math.PI) / 180) * Math.cos((to.lat! * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+        const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const km = Math.round(dist * 10) / 10;
+        segs.push({
+          from: from.title,
+          to: to.title,
+          modes: [
+            { transport_mode: "car", distance_km: km * 1.3, duration_minutes: Math.max(3, Math.round((km * 1.3) / 0.6)) },
+            { transport_mode: "bike", distance_km: km * 1.2, duration_minutes: Math.max(4, Math.round((km * 1.2) / 0.25)) },
+            { transport_mode: "walk", distance_km: km, duration_minutes: Math.max(5, Math.round(km / 0.08)) },
+            { transport_mode: "train", distance_km: km * 1.4, duration_minutes: Math.max(5, Math.round((km * 1.4) / 0.8)) },
+          ],
+        });
+      }
+      return segs;
+    }
+
+    return [];
+  }, [dbRoutes, isAiGenerated, tripPlan, selectedDay]);
 
   // Build travel segments for itinerary cards
   const travelSegments: TravelSegment[] = useMemo(() => {
