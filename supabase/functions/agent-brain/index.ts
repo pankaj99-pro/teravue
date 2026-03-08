@@ -82,14 +82,16 @@ serve(async (req) => {
       });
     }
 
-    // Fetch existing memory for this trip
+    // Fetch existing memory for this trip (including memory_key for dedup)
     const { data: memories } = await supabase
       .from("agent_memory")
-      .select("memory_type, content, created_at")
+      .select("memory_type, memory_key, content, created_at")
       .eq("trip_id", trip_id)
       .order("created_at");
 
-    const memoryContext = (memories || []).map(m => `[${m.memory_type}]: ${JSON.stringify(m.content)}`).join("\n");
+    const memoryTypes = (memories || []).map(m => m.memory_type);
+    const memoryKeys = (memories || []).filter(m => m.memory_key).map(m => m.memory_key);
+    const memoryContext = (memories || []).map(m => `[${m.memory_type}${m.memory_key ? ` (key: ${m.memory_key})` : ""}]: ${JSON.stringify(m.content)}`).join("\n");
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
