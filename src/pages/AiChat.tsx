@@ -315,7 +315,12 @@ export default function AiChat() {
             hasItinerary: finalToolCalls.some((tc) => tc.name === "create_itinerary" && tc.status === "done"),
             toolCalls: finalToolCalls,
           });
-          setActiveToolCalls([]);
+          // Keep tool call indicators visible for 2.5s so user sees the green checkmark
+          if (finalToolCalls.length > 0) {
+            setTimeout(() => setActiveToolCalls([]), 2500);
+          } else {
+            setActiveToolCalls([]);
+          }
         },
         onError: (error) => {
           setIsTyping(false);
