@@ -394,7 +394,6 @@ export default function AiChat() {
             </div>
           </div>
           </div>
-          </div>
 
           {/* Right panel: Agent Activity */}
           <AnimatePresence>
