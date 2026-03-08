@@ -57,7 +57,7 @@ export function Navbar() {
         <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
           <Compass className="w-4 h-4 text-primary-foreground" />
         </div>
-        <span className="text-lg font-bold tracking-wider text-foreground">TERAVUE.</span>
+        <span className="text-lg font-bold tracking-wider text-foreground font-display">TERAVUE.</span>
       </div>
 
       <div className="hidden md:flex items-center gap-1">

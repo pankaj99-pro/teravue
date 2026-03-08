@@ -121,7 +121,7 @@ export function TripHeader({ selectedDay, onDayChange, days, dayInfo, tripInfo }
             transition={{ duration: 0.25 }}
           >
             <p className="text-xs text-muted-foreground">{info.date}</p>
-            <h2 className="text-base md:text-lg font-semibold text-foreground">{info.title}</h2>
+            <h2 className="text-base md:text-lg font-semibold text-foreground font-display">{info.title}</h2>
           </motion.div>
         </AnimatePresence>
         <motion.button

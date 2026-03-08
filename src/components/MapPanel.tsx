@@ -285,10 +285,10 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
             <button
               key={mode}
               onClick={() => handleModeChange(mode)}
-              className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 active:scale-90 ${
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-90 ${
                 isSelected
-                  ? "text-white shadow-md"
-                  : "bg-white/80 backdrop-blur-sm border border-border/30 text-muted-foreground hover:text-foreground hover:bg-white shadow-sm"
+                  ? "text-white shadow-lg"
+                  : "bg-card/80 backdrop-blur-sm border border-glass-border text-muted-foreground hover:text-foreground hover:bg-accent shadow-md"
               }`}
               style={isSelected ? { background: mc.color } : undefined}
               title={mc.label}
