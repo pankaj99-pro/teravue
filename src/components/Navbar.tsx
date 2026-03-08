@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Bell, ChevronDown, Compass, MessageSquare, Map, BookOpen, Users } from "lucide-react";
+import { Bell, ChevronDown, Compass, MessageSquare, Map, BookOpen, Users, History } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
