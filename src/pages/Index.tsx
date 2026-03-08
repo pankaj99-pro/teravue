@@ -132,7 +132,7 @@ export default function Index() {
           <AnimatePresence mode="wait">
             <motion.div
               key={selectedDay}
-              className="px-4 md:px-6 pb-8 space-y-0.5"
+              className="px-4 md:px-6 pb-8 space-y-1"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -16 }}
