@@ -4,6 +4,7 @@ export type ChatMessage = { role: "user" | "assistant"; content: string };
 
 interface StreamCallbacks {
   onDelta: (text: string) => void;
+  onToolCallStart?: (name: string) => void;
   onToolCall: (name: string, args: any) => void;
   onDone: () => void;
   onError: (error: string) => void;
@@ -95,7 +96,10 @@ export async function streamTravelChat(messages: ChatMessage[], callbacks: Strea
         // Accumulate tool call chunks
         if (delta?.tool_calls) {
           for (const tc of delta.tool_calls) {
-            if (tc.function?.name) toolCallName = tc.function.name;
+            if (tc.function?.name) {
+              toolCallName = tc.function.name;
+              callbacks.onToolCallStart?.(toolCallName);
+            }
             if (tc.function?.arguments) toolCallArgs += tc.function.arguments;
           }
         }

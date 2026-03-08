@@ -13,8 +13,10 @@ import {
   Bot,
   User,
   Loader2,
-  Map,
+  Map as MapIcon,
   Wand2,
+  Check,
+  Circle,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { ChatSidebar, ChatSession } from "@/components/ChatSidebar";
@@ -26,16 +28,23 @@ import { saveTripToDatabase } from "@/lib/tripStorage";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+interface ToolCallStatus {
+  name: string;
+  status: "pending" | "running" | "done" | "error";
+}
+
 interface UIMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
   hasItinerary?: boolean;
+  toolCalls?: ToolCallStatus[];
 }
 
 interface StoredSession {
   id: string;
+  dbId?: string; // database UUID
   title: string;
   messages: UIMessage[];
   createdAt: Date;
@@ -50,6 +59,10 @@ const suggestionChips = [
   { label: "Plan a romantic 4-day trip to Santorini", icon: Hotel },
 ];
 
+const TOOL_DISPLAY_NAMES: Record<string, string> = {
+  create_itinerary: "Creating Itinerary",
+};
+
 export default function AiChat() {
   const [sessions, setSessions] = useState<StoredSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -58,10 +71,12 @@ export default function AiChat() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [agentRunning, setAgentRunning] = useState(false);
   const [agentTripId, setAgentTripId] = useState<string | null>(null);
+  const [activeToolCalls, setActiveToolCalls] = useState<ToolCallStatus[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { setTripPlan } = useItinerary();
   const { user } = useAuth();
+  const loadedRef = useRef(false);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const messages = activeSession?.messages || [];
@@ -72,22 +87,78 @@ export default function AiChat() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping]);
+  }, [messages, isTyping, activeToolCalls]);
 
-  const createSession = useCallback((firstMessage: string): string => {
-    const id = Date.now().toString();
+  // Load sessions from DB on mount
+  useEffect(() => {
+    if (!user || loadedRef.current) return;
+    loadedRef.current = true;
+    (async () => {
+      const { data: dbSessions } = await supabase
+        .from("chat_sessions")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (!dbSessions?.length) return;
+
+      const { data: dbMessages } = await supabase
+        .from("chat_messages")
+        .select("*")
+        .in("session_id", dbSessions.map((s: any) => s.id))
+        .order("created_at", { ascending: true });
+
+      const msgsBySession = new Map<string, UIMessage[]>();
+      for (const m of dbMessages || []) {
+        const arr = msgsBySession.get(m.session_id) || [];
+        arr.push({
+          id: m.id,
+          role: m.role as "user" | "assistant",
+          content: m.content,
+          timestamp: new Date(m.created_at),
+          hasItinerary: m.has_itinerary,
+          toolCalls: m.tool_calls ? (m.tool_calls as any[]).map((tc: any) => ({ name: tc.name, status: tc.status as ToolCallStatus["status"] })) : undefined,
+        });
+        msgsBySession.set(m.session_id, arr);
+      }
+
+      const loaded: StoredSession[] = dbSessions.map((s: any) => ({
+        id: s.id,
+        dbId: s.id,
+        title: s.title,
+        messages: msgsBySession.get(s.id) || [],
+        createdAt: new Date(s.created_at),
+        hasItinerary: s.has_itinerary,
+        tripDestination: s.trip_destination,
+      }));
+      setSessions(loaded);
+    })();
+  }, [user]);
+
+  const createSession = useCallback(async (firstMessage: string): Promise<string> => {
+    const localId = Date.now().toString();
     const title = firstMessage.length > 40 ? firstMessage.slice(0, 40) + "…" : firstMessage;
+
+    let dbId: string | undefined;
+    if (user) {
+      const { data } = await supabase
+        .from("chat_sessions")
+        .insert({ user_id: user.id, title })
+        .select("id")
+        .single();
+      if (data) dbId = data.id;
+    }
+
     const newSession: StoredSession = {
-      id,
+      id: dbId || localId,
+      dbId,
       title,
       messages: [],
       createdAt: new Date(),
       hasItinerary: false,
     };
     setSessions((prev) => [newSession, ...prev]);
-    setActiveSessionId(id);
-    return id;
-  }, []);
+    setActiveSessionId(newSession.id);
+    return newSession.id;
+  }, [user]);
 
   const updateSessionMessages = useCallback((sessionId: string, updater: (msgs: UIMessage[]) => UIMessage[]) => {
     setSessions((prev) =>
@@ -97,6 +168,19 @@ export default function AiChat() {
     );
   }, []);
 
+  const saveMessageToDB = async (sessionId: string, msg: { role: string; content: string; hasItinerary?: boolean; toolCalls?: ToolCallStatus[] }) => {
+    const session = sessions.find((s) => s.id === sessionId);
+    const dbSessionId = session?.dbId || sessionId;
+    if (!user) return;
+    await supabase.from("chat_messages").insert({
+      session_id: dbSessionId,
+      role: msg.role,
+      content: msg.content,
+      has_itinerary: msg.hasItinerary || false,
+      tool_calls: msg.toolCalls ? JSON.parse(JSON.stringify(msg.toolCalls)) : [],
+    });
+  };
+
   const handleNewChat = () => {
     setActiveSessionId(null);
   };
@@ -105,7 +189,11 @@ export default function AiChat() {
     setActiveSessionId(id);
   };
 
-  const handleDeleteSession = (id: string) => {
+  const handleDeleteSession = async (id: string) => {
+    const session = sessions.find((s) => s.id === id);
+    if (session?.dbId) {
+      await supabase.from("chat_sessions").delete().eq("id", session.dbId);
+    }
     setSessions((prev) => prev.filter((s) => s.id !== id));
     if (activeSessionId === id) setActiveSessionId(null);
     toast.info("Chat deleted");
@@ -115,10 +203,9 @@ export default function AiChat() {
     const messageText = text || input.trim();
     if (!messageText || isTyping) return;
 
-    // Create or use existing session
     let sessionId = activeSessionId;
     if (!sessionId) {
-      sessionId = createSession(messageText);
+      sessionId = await createSession(messageText);
     }
 
     const userMessage: UIMessage = {
@@ -131,6 +218,10 @@ export default function AiChat() {
     updateSessionMessages(sessionId, (msgs) => [...msgs, userMessage]);
     setInput("");
     setIsTyping(true);
+    setActiveToolCalls([]);
+
+    // Save user message to DB
+    saveMessageToDB(sessionId, { role: "user", content: messageText });
 
     // Build conversation history
     const currentMsgs = sessions.find((s) => s.id === sessionId)?.messages || [];
@@ -141,6 +232,7 @@ export default function AiChat() {
 
     let assistantContent = "";
     const assistantId = `ai-${Date.now()}`;
+    let finalToolCalls: ToolCallStatus[] = [];
 
     const upsertAssistant = (chunk: string) => {
       assistantContent += chunk;
@@ -157,9 +249,21 @@ export default function AiChat() {
     try {
       await streamTravelChat(history, {
         onDelta: (chunk) => upsertAssistant(chunk),
+        onToolCallStart: (name) => {
+          const tc: ToolCallStatus = { name, status: "running" };
+          setActiveToolCalls((prev) => [...prev, tc]);
+          finalToolCalls = [...finalToolCalls, tc];
+        },
         onToolCall: async (name, args) => {
+          // Mark tool as done
+          setActiveToolCalls((prev) =>
+            prev.map((tc) => tc.name === name ? { ...tc, status: "done" } : tc)
+          );
+          finalToolCalls = finalToolCalls.map((tc) =>
+            tc.name === name ? { ...tc, status: "done" } : tc
+          );
+
           if (name === "create_itinerary") {
-            // Save to database if user is authenticated
             let savedTripId: string | undefined;
             if (user) {
               const tripId = await saveTripToDatabase(args, user.id);
@@ -174,7 +278,6 @@ export default function AiChat() {
               ? "✨ Itinerary generated and saved! View it on the Itinerary page."
               : "✨ Itinerary generated! Sign in to save your trips."
             );
-            // Mark session and message
             setSessions((prev) =>
               prev.map((s) =>
                 s.id === sessionId
@@ -183,25 +286,49 @@ export default function AiChat() {
                       hasItinerary: true,
                       tripDestination: args.destination,
                       messages: s.messages.map((m) =>
-                        m.id === assistantId ? { ...m, hasItinerary: true } : m
+                        m.id === assistantId ? { ...m, hasItinerary: true, toolCalls: finalToolCalls } : m
                       ),
                     }
                   : s
               )
             );
+
+            // Update session in DB
+            if (user) {
+              const session = sessions.find((s) => s.id === sessionId);
+              if (session?.dbId) {
+                await supabase.from("chat_sessions").update({
+                  has_itinerary: true,
+                  trip_destination: args.destination,
+                  updated_at: new Date().toISOString(),
+                }).eq("id", session.dbId);
+              }
+            }
           }
         },
-        onDone: () => setIsTyping(false),
+        onDone: () => {
+          setIsTyping(false);
+          // Save assistant message to DB
+          saveMessageToDB(sessionId!, {
+            role: "assistant",
+            content: assistantContent,
+            hasItinerary: finalToolCalls.some((tc) => tc.name === "create_itinerary" && tc.status === "done"),
+            toolCalls: finalToolCalls,
+          });
+          setActiveToolCalls([]);
+        },
         onError: (error) => {
           setIsTyping(false);
           toast.error(error);
           upsertAssistant(`⚠️ ${error}`);
+          setActiveToolCalls([]);
         },
       });
     } catch {
       setIsTyping(false);
       toast.error("Failed to connect to AI service");
       upsertAssistant("⚠️ Failed to connect to AI service. Please try again.");
+      setActiveToolCalls([]);
     }
   };
 
@@ -288,7 +415,7 @@ export default function AiChat() {
                   <div className="flex items-center justify-center gap-6 pt-4 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" /> 195+ countries</span>
                     <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> Real AI planning</span>
-                    <span className="flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5" /> Powered by Gemini</span>
+                    <span className="flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5" /> Powered by AI</span>
                   </div>
                 </motion.div>
               </div>
@@ -335,6 +462,11 @@ export default function AiChat() {
                           </p>
                         </div>
 
+                        {/* Tool call status for saved messages */}
+                        {message.toolCalls && message.toolCalls.length > 0 && (
+                          <ToolCallIndicator toolCalls={message.toolCalls} />
+                        )}
+
                         {message.hasItinerary && (
                           <motion.button
                             onClick={() => navigate("/")}
@@ -344,7 +476,7 @@ export default function AiChat() {
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                           >
-                            <Map className="w-4 h-4" />
+                            <MapIcon className="w-4 h-4" />
                             View Itinerary on Map
                           </motion.button>
                         )}
@@ -359,8 +491,23 @@ export default function AiChat() {
                   ))}
                 </AnimatePresence>
 
+                {/* Live tool call status */}
                 <AnimatePresence>
-                  {isTyping && (
+                  {activeToolCalls.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      className="flex gap-3"
+                    >
+                      <div className="w-8 h-8 flex-shrink-0" />
+                      <ToolCallIndicator toolCalls={activeToolCalls} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                  {isTyping && activeToolCalls.length === 0 && (
                     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex gap-3">
                       <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0">
                         <Bot className="w-4 h-4 text-primary-foreground" />
@@ -428,6 +575,55 @@ export default function AiChat() {
         </div>
       </div>
     </div>
+  );
+}
+
+function ToolCallIndicator({ toolCalls }: { toolCalls: ToolCallStatus[] }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass-panel rounded-xl px-4 py-3 space-y-2"
+    >
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Tool Activity</p>
+      {toolCalls.map((tc, i) => (
+        <motion.div
+          key={`${tc.name}-${i}`}
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: i * 0.1 }}
+          className="flex items-center gap-2.5"
+        >
+          {tc.status === "running" || tc.status === "pending" ? (
+            <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin flex-shrink-0" />
+          ) : tc.status === "done" ? (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0"
+            >
+              <Check className="w-3 h-3 text-emerald-400" />
+            </motion.div>
+          ) : (
+            <div className="w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center flex-shrink-0">
+              <Circle className="w-3 h-3 text-destructive" />
+            </div>
+          )}
+          <span className={`text-xs font-medium ${
+            tc.status === "done" ? "text-emerald-400" : 
+            tc.status === "error" ? "text-destructive" : "text-foreground"
+          }`}>
+            {TOOL_DISPLAY_NAMES[tc.name] || tc.name}
+          </span>
+          <span className={`text-[10px] ml-auto ${
+            tc.status === "done" ? "text-emerald-400/70" : 
+            tc.status === "error" ? "text-destructive/70" : "text-muted-foreground"
+          }`}>
+            {tc.status === "running" ? "In progress…" : tc.status === "done" ? "Complete" : tc.status === "pending" ? "Waiting…" : "Failed"}
+          </span>
+        </motion.div>
+      ))}
+    </motion.div>
   );
 }
 
