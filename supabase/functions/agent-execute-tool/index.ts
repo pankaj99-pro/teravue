@@ -139,11 +139,13 @@ serve(async (req) => {
         const attrToolCall = attractionData.choices?.[0]?.message?.tool_calls?.[0];
         const attractionResults = attrToolCall ? JSON.parse(attrToolCall.function.arguments) : { attractions: [] };
 
-        // Save to memory
+        // Save to memory with memory_key
+        const attractionKey = `attractions_${(parameters?.city || parameters?.location || "default").toLowerCase().replace(/\s+/g, "_")}`;
         await supabase.from("agent_memory").insert({
           user_id: user.id,
           trip_id,
           memory_type: "attractions_found",
+          memory_key: attractionKey,
           content: attractionResults,
         });
 
