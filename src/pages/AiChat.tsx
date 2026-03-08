@@ -452,6 +452,8 @@ export default function AiChat() {
                       )}
 
                       <div className="max-w-[80%] space-y-2">
+                        {/* Only show text bubble if there's content */}
+                        {message.content.trim() && (
                         <div
                           className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                             message.role === "user"
@@ -476,6 +478,7 @@ export default function AiChat() {
                             {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </p>
                         </div>
+                        )}
 
                         {/* Tool call status for saved messages */}
                         {message.toolCalls && message.toolCalls.length > 0 && (
