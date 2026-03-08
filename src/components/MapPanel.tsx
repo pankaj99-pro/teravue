@@ -199,7 +199,7 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
       <AnimatePresence>
         {showRouteCard && (
           <motion.div
-            className="absolute bottom-20 left-4 z-[1000] bg-card/92 backdrop-blur-xl border border-glass-border shadow-2xl rounded-xl p-4 w-72 space-y-3"
+            className="absolute bottom-20 left-4 z-[1000] bg-[hsl(225,25%,11%)] border border-glass-border shadow-2xl rounded-xl p-4 w-72 space-y-3"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
