@@ -9,19 +9,27 @@ import hotelImg from "@/assets/hotel.jpg";
 import restaurantImg from "@/assets/restaurant.jpg";
 import colosseumImg from "@/assets/colosseum.jpg";
 
-interface MapPanelProps {
-  activeStop: number;
+interface MapStop {
+  id: number;
+  label: string;
+  lat: number;
+  lng: number;
+  img: string;
 }
 
-const stops = [
+interface MapPanelProps {
+  activeStop: number;
+  customStops?: MapStop[];
+  dayTitle?: string;
+}
+
+const defaultStops: MapStop[] = [
   { id: 1, label: "Fiumicino Airport", lat: 41.8003, lng: 12.2389, img: airportImg },
   { id: 2, label: "Albergo Roma", lat: 41.8967, lng: 12.4822, img: hotelImg },
   { id: 3, label: "Trattoria da Enzo", lat: 41.8893, lng: 12.4692, img: restaurantImg },
   { id: 4, label: "Colosseum", lat: 41.8902, lng: 12.4922, img: colosseumImg },
   { id: 5, label: "Roman Forum", lat: 41.8925, lng: 12.4853, img: colosseumImg },
 ];
-
-const routeCoords: [number, number][] = stops.map((s) => [s.lat, s.lng]);
 
 const transportModes = [
   { icon: Footprints, label: "Walk", time: "2h 10m" },
@@ -49,18 +57,22 @@ function createNumberedIcon(id: number, isActive: boolean) {
   });
 }
 
-function FlyToActive({ activeStop }: { activeStop: number }) {
+function FlyToActive({ activeStop, stops }: { activeStop: number; stops: MapStop[] }) {
   const map = useMap();
   useEffect(() => {
     const stop = stops.find((s) => s.id === activeStop);
     if (stop) {
       map.flyTo([stop.lat, stop.lng], 14, { duration: 1 });
     }
-  }, [activeStop, map]);
+  }, [activeStop, stops, map]);
   return null;
 }
 
-export function MapPanel({ activeStop }: MapPanelProps) {
+export function MapPanel({ activeStop, customStops, dayTitle }: MapPanelProps) {
+  const stops = customStops && customStops.length > 0 ? customStops : defaultStops;
+  const routeCoords: [number, number][] = stops.map((s) => [s.lat, s.lng]);
+  const center: [number, number] = stops.length > 0 ? [stops[0].lat, stops[0].lng] : [41.89, 12.48];
+
   const handleTransportSelect = (label: string, time: string) => {
     toast.success(`${label} selected — estimated ${time}`);
   };
@@ -72,7 +84,7 @@ export function MapPanel({ activeStop }: MapPanelProps) {
   return (
     <div className="relative w-full h-full overflow-hidden bg-background">
       <MapContainer
-        center={[41.89, 12.48]}
+        center={center}
         zoom={12}
         className="w-full h-full z-0"
         zoomControl={false}
@@ -85,19 +97,10 @@ export function MapPanel({ activeStop }: MapPanelProps) {
         />
         <Polyline
           positions={routeCoords}
-          pathOptions={{
-            color: "hsl(207,90%,54%)",
-            weight: 3,
-            opacity: 0.7,
-            dashArray: "8 6",
-          }}
+          pathOptions={{ color: "hsl(207,90%,54%)", weight: 3, opacity: 0.7, dashArray: "8 6" }}
         />
         {stops.map((stop) => (
-          <Marker
-            key={stop.id}
-            position={[stop.lat, stop.lng]}
-            icon={createNumberedIcon(stop.id, activeStop === stop.id)}
-          >
+          <Marker key={stop.id} position={[stop.lat, stop.lng]} icon={createNumberedIcon(stop.id, activeStop === stop.id)}>
             <Popup className="dark-popup">
               <div className="w-36 overflow-hidden rounded-lg" style={{ background: "hsl(222,41%,10%)" }}>
                 <img src={stop.img} alt={stop.label} className="w-full h-20 object-cover" />
@@ -106,12 +109,12 @@ export function MapPanel({ activeStop }: MapPanelProps) {
             </Popup>
           </Marker>
         ))}
-        <FlyToActive activeStop={activeStop} />
+        <FlyToActive activeStop={activeStop} stops={stops} />
       </MapContainer>
 
       {/* Day label */}
       <div className="absolute top-4 right-4 z-[1000] glass-panel rounded-lg px-4 py-2 text-sm text-foreground">
-        Day 1 - Arrival & Exploration <span className="text-muted-foreground ml-1">›</span>
+        {dayTitle || "Day 1 - Arrival & Exploration"} <span className="text-muted-foreground ml-1">›</span>
       </div>
 
       {/* Route info card */}
@@ -124,13 +127,10 @@ export function MapPanel({ activeStop }: MapPanelProps) {
         <div className="flex items-start gap-2">
           <Zap className="w-3.5 h-3.5 text-secondary flex-shrink-0 mt-0.5" />
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Moderate traffic — taxi is the fastest way to reach your hotel now.
+            Moderate traffic — taxi is the fastest way to reach your destination now.
           </p>
         </div>
-        <button
-          onClick={handleBookTaxi}
-          className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors active:scale-95 transform duration-150"
-        >
+        <button onClick={handleBookTaxi} className="w-full py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors active:scale-95 transform duration-150">
           Book a Taxi
         </button>
       </div>
@@ -142,9 +142,7 @@ export function MapPanel({ activeStop }: MapPanelProps) {
             key={mode.label}
             onClick={() => handleTransportSelect(mode.label, mode.time)}
             className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 active:scale-90 ${
-              mode.active
-                ? "bg-primary text-primary-foreground"
-                : "glass-panel text-muted-foreground hover:text-foreground hover:bg-accent"
+              mode.active ? "bg-primary text-primary-foreground" : "glass-panel text-muted-foreground hover:text-foreground hover:bg-accent"
             }`}
             title={mode.label}
           >
