@@ -63,8 +63,8 @@ export function TripHeader({ selectedDay, onDayChange, days, dayInfo, tripInfo }
 
       {/* Title */}
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-foreground">{tripInfo.destination}</h1>
-        <p className="text-xs md:text-sm text-muted-foreground mt-1">{tripInfo.description}</p>
+        <h1 className="text-xl md:text-2xl font-bold text-foreground font-display">{tripInfo.destination}</h1>
+        <p className="text-xs md:text-sm text-muted-foreground mt-1 leading-relaxed">{tripInfo.description}</p>
       </div>
 
       {/* Metadata */}
