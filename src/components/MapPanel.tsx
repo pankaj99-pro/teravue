@@ -123,7 +123,7 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         style={{ background: "hsl(210, 20%, 98%)" }}
       >
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?language=en"
           attribution='&copy; <a href="https://carto.com/">CARTO</a>'
         />
 
