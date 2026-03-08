@@ -54,6 +54,8 @@ export default function AiChat() {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [agentRunning, setAgentRunning] = useState(false);
+  const [agentTripId, setAgentTripId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { setTripPlan } = useItinerary();
