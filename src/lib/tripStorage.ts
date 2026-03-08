@@ -1,13 +1,59 @@
 import { supabase } from "@/integrations/supabase/client";
 import { TripPlan, DayPlan } from "@/contexts/ItineraryContext";
 
+const extractNumber = (value: string | undefined, fallback = 0) => {
+  if (!value) return fallback;
+  const parsed = parseFloat(value.replace(/[^0-9.]/g, ""));
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const extractInt = (value: string | undefined, fallback = 0) => {
+  if (!value) return fallback;
+  const parsed = parseInt(value.replace(/[^0-9]/g, ""), 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const toSqlDate = (value?: string): string | null => {
+  if (!value) return null;
+
+  const direct = new Date(value);
+  if (!Number.isNaN(direct.getTime())) {
+    return direct.toISOString().slice(0, 10);
+  }
+
+  const withYear = new Date(`${value} ${new Date().getFullYear()}`);
+  if (!Number.isNaN(withYear.getTime())) {
+    return withYear.toISOString().slice(0, 10);
+  }
+
+  return null;
+};
+
+const toTimestamp = (timeValue: string | undefined, dayDate: string | null): string | null => {
+  if (!timeValue) return null;
+
+  const direct = new Date(timeValue);
+  if (!Number.isNaN(direct.getTime())) return direct.toISOString();
+
+  const match = timeValue.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!match) return null;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3]?.toUpperCase();
+
+  if (meridiem === "PM" && hours < 12) hours += 12;
+  if (meridiem === "AM" && hours === 12) hours = 0;
+
+  const base = dayDate ?? new Date().toISOString().slice(0, 10);
+  const iso = new Date(`${base}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00Z`);
+
+  if (Number.isNaN(iso.getTime())) return null;
+  return iso.toISOString();
+};
+
 export async function saveTripToDatabase(plan: TripPlan, userId: string): Promise<string | null> {
   try {
-    // Parse dates from dateRange like "Oct 12–16"
-    const now = new Date();
-    const year = now.getFullYear();
-
-    // Create trip record
     const { data: trip, error: tripError } = await supabase
       .from("trips")
       .insert({
@@ -15,8 +61,8 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
         title: `${plan.destination} Getaway — ${plan.totalDays} Days`,
         destination_city: plan.destination,
         destination_country: plan.country,
-        estimated_budget: parseFloat(plan.avgBudget.replace(/[^0-9.]/g, "")) || 0,
-        travelers_count: parseInt(plan.travelers.replace(/[^0-9]/g, "")) || 2,
+        estimated_budget: extractNumber(plan.avgBudget, 0),
+        travelers_count: extractInt(plan.travelers, 2) || 2,
         ai_generated: true,
       })
       .select()
@@ -27,36 +73,40 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
       return null;
     }
 
-    // Save each day and its activities
-    for (const day of plan.days) {
+    for (const day of plan.days || []) {
+      const parsedDayDate = toSqlDate(day.date);
+
       const { data: tripDay, error: dayError } = await supabase
         .from("trip_days")
         .insert({
           trip_id: trip.id,
           day_number: day.day,
           summary: day.title,
-          date: day.date,
+          date: parsedDayDate,
         })
         .select()
         .single();
 
       if (dayError || !tripDay) {
-        console.error("Failed to save trip day:", dayError);
+        console.error("Failed to save trip day:", dayError, "day:", day);
         continue;
       }
 
-      // Save activities for this day
-      for (const stop of day.stops) {
-        await supabase.from("activities").insert({
+      for (const stop of day.stops || []) {
+        const { error: activityError } = await supabase.from("activities").insert({
           trip_day_id: tripDay.id,
           title: stop.title,
           location_name: stop.location,
-          start_time: stop.time,
-          price_estimate: stop.price ? parseFloat(stop.price.replace(/[^0-9.]/g, "")) : null,
+          start_time: toTimestamp(stop.time, parsedDayDate),
+          price_estimate: stop.price ? extractNumber(stop.price) : null,
           activity_type: stop.image || "activity",
           latitude: stop.lat || null,
           longitude: stop.lng || null,
         });
+
+        if (activityError) {
+          console.error("Failed to save activity:", activityError, "stop:", stop);
+        }
       }
     }
 
@@ -104,7 +154,9 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
     title: d.summary || `Day ${d.day_number}`,
     stops: (d.activities || []).map((a: any, i: number) => ({
       id: i + 1,
-      time: a.start_time || "",
+      time: a.start_time
+        ? new Date(a.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+        : "",
       title: a.title,
       location: a.location_name || "",
       price: a.price_estimate ? `$${a.price_estimate.toFixed(2)}` : undefined,
