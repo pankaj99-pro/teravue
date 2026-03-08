@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { TripHeader } from "@/components/TripHeader";
 import { ItineraryCard, ItineraryItem } from "@/components/ItineraryCard";
-import { MapPanel } from "@/components/MapPanel";
+import { MapPanel, TransportMode } from "@/components/MapPanel";
 import { useItinerary } from "@/contexts/ItineraryContext";
 
 import airportImg from "@/assets/airport.jpg";
