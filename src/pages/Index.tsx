@@ -41,6 +41,7 @@ export default function Index() {
   const [selectedDay, setSelectedDay] = useState(1);
   const [activeStop, setActiveStop] = useState(1);
   const [viewMode, setViewMode] = useState<"itinerary" | "map">("itinerary");
+  const [transportMode, setTransportMode] = useState<TransportMode>("car");
   const { tripPlan, isAiGenerated } = useItinerary();
 
   // Derive data from AI plan or fallback to demo
