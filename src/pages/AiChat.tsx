@@ -60,7 +60,11 @@ const suggestionChips = [
 ];
 
 const TOOL_DISPLAY_NAMES: Record<string, string> = {
-  create_itinerary: "Creating Itinerary",
+  search_flights: "Searching Flights",
+  search_hotels: "Finding Hotels",
+  search_restaurants: "Discovering Restaurants",
+  search_attractions: "Finding Attractions",
+  create_itinerary: "Building Itinerary",
 };
 
 export default function AiChat() {
@@ -264,13 +268,24 @@ export default function AiChat() {
             ensureAssistantMessage("");
           }
         },
+        onToolCallDone: (name) => {
+          // Mark research tools as done (not create_itinerary — that's handled in onToolCall)
+          if (name !== "create_itinerary") {
+            setActiveToolCalls((prev) =>
+              prev.map((tc) => tc.name === name && tc.status === "running" ? { ...tc, status: "done" } : tc)
+            );
+            finalToolCalls = finalToolCalls.map((tc) =>
+              tc.name === name && tc.status === "running" ? { ...tc, status: "done" } : tc
+            );
+          }
+        },
         onToolCall: async (name, args) => {
-          // Mark tool as done
+          // Mark this tool as done
           setActiveToolCalls((prev) =>
-            prev.map((tc) => tc.name === name ? { ...tc, status: "done" } : tc)
+            prev.map((tc) => tc.name === name && tc.status === "running" ? { ...tc, status: "done" } : tc)
           );
           finalToolCalls = finalToolCalls.map((tc) =>
-            tc.name === name ? { ...tc, status: "done" } : tc
+            tc.name === name && tc.status === "running" ? { ...tc, status: "done" } : tc
           );
 
           if (name === "create_itinerary") {
