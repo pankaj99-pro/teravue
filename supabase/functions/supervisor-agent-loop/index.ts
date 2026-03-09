@@ -159,16 +159,17 @@ serve(async (req) => {
     }
 
     // Step 5: Run transport agent (optimizes routes for all modes)
+    await writeLog(run.id, "thinking", "🧠 Supervisor — Starting route optimization: calculating distances, determining visit order, selecting transport modes");
     const transportTasks = tasks.filter((t: any) => POST_ITINERARY_AGENTS.includes(t.agent_type));
     for (const task of transportTasks) {
-      await writeLog(run.id, "thinking", `🧠 Supervisor — Dispatching ${task.agent_type.replace("_", " ")}`);
+      await writeLog(run.id, "thinking", `🧠 Supervisor — Dispatching ${task.agent_type.replace("_", " ")} — applying cost-minimizing transport rules (walk < 2km, bike 2-6km, transit > 6km)`);
       await fetch(`${baseUrl}/functions/v1/run-specialized-agent`, {
         method: "POST",
         headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({ task_id: task.id, trip_id }),
       });
     }
-    await writeLog(run.id, "thinking", "🧠 Supervisor — Route optimization complete across all transport modes");
+    await writeLog(run.id, "thinking", "🧠 Supervisor — Route optimization complete: visit order optimized, daily starting points linked to previous day endpoints");
 
     // Final
     await supabase.from("agent_runs").update({
