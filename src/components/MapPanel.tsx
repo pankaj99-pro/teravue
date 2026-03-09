@@ -136,10 +136,10 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         className="w-full h-full z-0"
         zoomControl={false}
         attributionControl={false}
-        style={{ background: "hsl(210, 20%, 98%)" }}
+        style={{ background: "hsl(225, 25%, 7%)" }}
       >
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           attribution='&copy; <a href="https://carto.com/">CARTO</a>'
         />
 
@@ -178,8 +178,8 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
           />
         )}
 
-        {stops.map((stop) => (
-          <Marker key={stop.id} position={[stop.lat, stop.lng]} icon={createNumberedIcon(stop.id, activeStop === stop.id)}>
+        {stops.map((stop, index) => (
+          <Marker key={stop.id} position={[stop.lat, stop.lng]} icon={createNumberedIcon(index + 1, activeStop === stop.id)}>
             <Popup>
               <div className="w-40 overflow-hidden rounded-lg">
                 <img src={stop.img} alt={stop.label} className="w-full h-20 object-cover" />
