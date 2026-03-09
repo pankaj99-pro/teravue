@@ -67,7 +67,9 @@ function FlyToActive({ activeStop, stops }: { activeStop: number; stops: MapStop
 
   useEffect(() => {
     const stop = stops.find((s) => s.id === activeStop);
-    if (stop) map.flyTo([stop.lat, stop.lng], 14, { duration: 1 });
+    if (stop && isFinite(stop.lat) && isFinite(stop.lng)) {
+      map.flyTo([stop.lat, stop.lng], 14, { duration: 1 });
+    }
   }, [activeStop, stops, map]);
 
   return null;
@@ -83,7 +85,9 @@ function formatDuration(min: number): string {
 export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, selectedMode, onModeChange }: MapPanelProps) {
   const stops = customStops ?? [];
   const segments = routeSegments ?? [];
-  const center: [number, number] = stops.length > 0 ? [stops[0].lat, stops[0].lng] : [20, 0];
+  const center: [number, number] = stops.length > 0 && isFinite(stops[0].lat) && isFinite(stops[0].lng)
+    ? [stops[0].lat, stops[0].lng]
+    : [20, 0];
 
   const [showRouteCard, setShowRouteCard] = useState(true);
 
