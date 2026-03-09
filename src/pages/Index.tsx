@@ -134,7 +134,7 @@ export default function Index() {
   const mapStops = useMemo(() => {
     if (!currentDayPlan) return [];
     return currentDayPlan.stops
-      .filter((s) => s.lat != null && s.lng != null)
+      .filter((s) => s.lat != null && s.lng != null && isFinite(s.lat!) && isFinite(s.lng!))
       .map((s) => ({
         id: s.id,
         label: s.title,

@@ -109,7 +109,7 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
     return { distance: dist.toFixed(1), duration: formatDuration(dur) };
   }, [segments, selectedMode]);
 
-  const routeCoords: [number, number][] = stops.map((s) => [s.lat, s.lng]);
+  const routeCoords: [number, number][] = stops.filter((s) => isFinite(s.lat) && isFinite(s.lng)).map((s) => [s.lat, s.lng]);
 
   const handleModeChange = (mode: TransportMode) => {
     onModeChange(mode);
