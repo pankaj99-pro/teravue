@@ -136,7 +136,7 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         className="w-full h-full z-0"
         zoomControl={false}
         attributionControl={false}
-        style={{ background: "hsl(210, 20%, 98%)" }}
+        style={{ background: "hsl(225, 25%, 7%)" }}
       >
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
