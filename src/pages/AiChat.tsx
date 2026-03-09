@@ -60,7 +60,11 @@ const suggestionChips = [
 ];
 
 const TOOL_DISPLAY_NAMES: Record<string, string> = {
-  create_itinerary: "Creating Itinerary",
+  search_flights: "Searching Flights",
+  search_hotels: "Finding Hotels",
+  search_restaurants: "Discovering Restaurants",
+  search_attractions: "Finding Attractions",
+  create_itinerary: "Building Itinerary",
 };
 
 export default function AiChat() {
