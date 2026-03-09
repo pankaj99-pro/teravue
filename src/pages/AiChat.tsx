@@ -268,6 +268,17 @@ export default function AiChat() {
             ensureAssistantMessage("");
           }
         },
+        onToolCallDone: (name) => {
+          // Mark research tools as done (not create_itinerary — that's handled in onToolCall)
+          if (name !== "create_itinerary") {
+            setActiveToolCalls((prev) =>
+              prev.map((tc) => tc.name === name && tc.status === "running" ? { ...tc, status: "done" } : tc)
+            );
+            finalToolCalls = finalToolCalls.map((tc) =>
+              tc.name === name && tc.status === "running" ? { ...tc, status: "done" } : tc
+            );
+          }
+        },
         onToolCall: async (name, args) => {
           // Mark tool as done
           setActiveToolCalls((prev) =>
