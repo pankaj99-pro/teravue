@@ -1,10 +1,11 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Car, Bike, Train, Footprints, Zap, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOSRMRoutes } from "@/hooks/useOSRMRoutes";
+import { AnimatedPolyline } from "@/components/AnimatedPolyline";
 
 export interface MapStop {
   id: number;
@@ -92,6 +93,15 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
     : [20, 0];
 
   const [showRouteCard, setShowRouteCard] = useState(true);
+  // Track day changes to re-trigger animation
+  const [animKey, setAnimKey] = useState(0);
+  const prevDayRef = useRef(dayTitle);
+  useEffect(() => {
+    if (dayTitle !== prevDayRef.current) {
+      prevDayRef.current = dayTitle;
+      setAnimKey((k) => k + 1);
+    }
+  }, [dayTitle]);
 
   const config = modeConfig[selectedMode];
   const ModeIcon = config.icon;
@@ -145,23 +155,41 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
 
         {/* Render real road-following polylines */}
         {osrmRoutes.map((route, i) => (
-          <Polyline
-            key={`route-${route.fromId}-${route.toId}-${i}`}
+          <AnimatedPolyline
+            key={`route-${route.fromId}-${route.toId}-${animKey}`}
             positions={route.coordinates}
-            pathOptions={{
-              color: route.isFlight ? "hsl(0, 0%, 60%)" : config.color,
-              weight: route.isFlight ? 2 : 4,
-              opacity: 0.85,
-              dashArray: route.isFlight
+            color={route.isFlight ? "hsl(0, 0%, 60%)" : config.color}
+            weight={route.isFlight ? 2 : 4}
+            opacity={0.85}
+            dashArray={
+              route.isFlight
                 ? "8 12"
                 : selectedMode === "walk"
                 ? "6 8"
                 : selectedMode === "bike"
                 ? "12 6"
-                : undefined,
-            }}
+                : undefined
+            }
+            isFlight={route.isFlight}
+            delay={i * 400}
+            duration={700}
           />
         ))}
+
+        {/* Fallback: if OSRM hasn't loaded yet, show straight lines */}
+        {osrmRoutes.length === 0 && stops.length > 1 && (
+          <Polyline
+            positions={stops
+              .filter((s) => isFinite(s.lat) && isFinite(s.lng))
+              .map((s) => [s.lat, s.lng] as [number, number])}
+            pathOptions={{
+              color: config.color,
+              weight: 3,
+              opacity: 0.4,
+              dashArray: "4 8",
+            }}
+          />
+        )}
 
         {/* Fallback: if OSRM hasn't loaded yet, show straight lines */}
         {osrmRoutes.length === 0 && stops.length > 1 && (
