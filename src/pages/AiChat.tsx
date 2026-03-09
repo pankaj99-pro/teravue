@@ -280,12 +280,12 @@ export default function AiChat() {
           }
         },
         onToolCall: async (name, args) => {
-          // Mark tool as done
+          // Mark this tool as done
           setActiveToolCalls((prev) =>
-            prev.map((tc) => tc.name === name ? { ...tc, status: "done" } : tc)
+            prev.map((tc) => tc.name === name && tc.status === "running" ? { ...tc, status: "done" } : tc)
           );
           finalToolCalls = finalToolCalls.map((tc) =>
-            tc.name === name ? { ...tc, status: "done" } : tc
+            tc.name === name && tc.status === "running" ? { ...tc, status: "done" } : tc
           );
 
           if (name === "create_itinerary") {
