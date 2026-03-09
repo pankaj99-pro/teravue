@@ -155,23 +155,41 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
 
         {/* Render real road-following polylines */}
         {osrmRoutes.map((route, i) => (
-          <Polyline
-            key={`route-${route.fromId}-${route.toId}-${i}`}
+          <AnimatedPolyline
+            key={`route-${route.fromId}-${route.toId}-${animKey}`}
             positions={route.coordinates}
-            pathOptions={{
-              color: route.isFlight ? "hsl(0, 0%, 60%)" : config.color,
-              weight: route.isFlight ? 2 : 4,
-              opacity: 0.85,
-              dashArray: route.isFlight
+            color={route.isFlight ? "hsl(0, 0%, 60%)" : config.color}
+            weight={route.isFlight ? 2 : 4}
+            opacity={0.85}
+            dashArray={
+              route.isFlight
                 ? "8 12"
                 : selectedMode === "walk"
                 ? "6 8"
                 : selectedMode === "bike"
                 ? "12 6"
-                : undefined,
-            }}
+                : undefined
+            }
+            isFlight={route.isFlight}
+            delay={i * 400}
+            duration={700}
           />
         ))}
+
+        {/* Fallback: if OSRM hasn't loaded yet, show straight lines */}
+        {osrmRoutes.length === 0 && stops.length > 1 && (
+          <Polyline
+            positions={stops
+              .filter((s) => isFinite(s.lat) && isFinite(s.lng))
+              .map((s) => [s.lat, s.lng] as [number, number])}
+            pathOptions={{
+              color: config.color,
+              weight: 3,
+              opacity: 0.4,
+              dashArray: "4 8",
+            }}
+          />
+        )}
 
         {/* Fallback: if OSRM hasn't loaded yet, show straight lines */}
         {osrmRoutes.length === 0 && stops.length > 1 && (
