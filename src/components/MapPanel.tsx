@@ -1,10 +1,11 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Car, Bike, Train, Footprints, Zap, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOSRMRoutes } from "@/hooks/useOSRMRoutes";
+import { AnimatedPolyline } from "@/components/AnimatedPolyline";
 
 export interface MapStop {
   id: number;
