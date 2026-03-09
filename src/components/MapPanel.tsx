@@ -4,6 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Car, Bike, Train, Footprints, Zap, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useOSRMRoutes } from "@/hooks/useOSRMRoutes";
 
 export interface MapStop {
   id: number;
@@ -11,6 +12,7 @@ export interface MapStop {
   lat: number;
   lng: number;
   img: string;
+  activityType?: string;
 }
 
 export interface RouteSegment {
@@ -94,6 +96,18 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
   const config = modeConfig[selectedMode];
   const ModeIcon = config.icon;
 
+  // Build activity types map for OSRM hook
+  const activityTypes = useMemo(() => {
+    const map: Record<number, string> = {};
+    for (const s of stops) {
+      if (s.activityType) map[s.id] = s.activityType;
+    }
+    return map;
+  }, [stops]);
+
+  // Fetch real road polylines from OSRM
+  const { routes: osrmRoutes } = useOSRMRoutes(stops, activityTypes);
+
   const totals = useMemo(() => {
     let dist = 0;
     let dur = 0;
@@ -108,8 +122,6 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
 
     return { distance: dist.toFixed(1), duration: formatDuration(dur) };
   }, [segments, selectedMode]);
-
-  const routeCoords: [number, number][] = stops.filter((s) => isFinite(s.lat) && isFinite(s.lng)).map((s) => [s.lat, s.lng]);
 
   const handleModeChange = (mode: TransportMode) => {
     onModeChange(mode);
@@ -131,14 +143,37 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
           attribution='&copy; <a href="https://carto.com/">CARTO</a>'
         />
 
-        {routeCoords.length > 1 && (
+        {/* Render real road-following polylines */}
+        {osrmRoutes.map((route, i) => (
           <Polyline
-            positions={routeCoords}
+            key={`route-${route.fromId}-${route.toId}-${i}`}
+            positions={route.coordinates}
+            pathOptions={{
+              color: route.isFlight ? "hsl(0, 0%, 60%)" : config.color,
+              weight: route.isFlight ? 2 : 4,
+              opacity: 0.85,
+              dashArray: route.isFlight
+                ? "8 12"
+                : selectedMode === "walk"
+                ? "6 8"
+                : selectedMode === "bike"
+                ? "12 6"
+                : undefined,
+            }}
+          />
+        ))}
+
+        {/* Fallback: if OSRM hasn't loaded yet, show straight lines */}
+        {osrmRoutes.length === 0 && stops.length > 1 && (
+          <Polyline
+            positions={stops
+              .filter((s) => isFinite(s.lat) && isFinite(s.lng))
+              .map((s) => [s.lat, s.lng] as [number, number])}
             pathOptions={{
               color: config.color,
-              weight: 4,
-              opacity: 0.85,
-              dashArray: selectedMode === "walk" ? "6 8" : selectedMode === "bike" ? "12 6" : undefined,
+              weight: 3,
+              opacity: 0.4,
+              dashArray: "4 8",
             }}
           />
         )}
@@ -283,4 +318,3 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
     </div>
   );
 }
-
