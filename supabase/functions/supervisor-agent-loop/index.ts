@@ -119,7 +119,8 @@ serve(async (req) => {
       });
     }
 
-    await writeLog(run.id, "thinking", "🧠 Supervisor — Budget analysis complete. Building itinerary.");
+    await writeLog(run.id, "thinking", "🧠 Supervisor — Budget analysis complete. Building route-optimized itinerary.");
+    await writeLog(run.id, "thinking", "🧠 Supervisor — Reordering visit sequence to minimize travel distance and applying daily starting point continuity");
 
     // Step 4: Build itinerary
     await supabase.from("agent_runs").update({
