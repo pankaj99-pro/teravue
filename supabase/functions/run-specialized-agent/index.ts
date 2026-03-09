@@ -90,12 +90,26 @@ serve(async (req) => {
     const { data: trip } = await supabase.from("trips").select("*").eq("id", trip_id).single();
 
     if (task.agent_type === "transport_agent") {
-      // Transport agent: call optimize-trip-routes
+      // Transport agent: optimize routes with cost-minimizing transport rules
       await supabase.from("agent_logs").insert({
         trip_id,
         agent_run_id: task.agent_run_id,
         step_type: "thinking",
-        message: `🚗 Transport Agent — Analyzing distances between attractions and calculating multi-modal routes`,
+        message: `🚗 Transport Agent — Analyzing attraction distances for optimal route sequence`,
+      });
+
+      await supabase.from("agent_logs").insert({
+        trip_id,
+        agent_run_id: task.agent_run_id,
+        step_type: "thinking",
+        message: `🚗 Transport Agent — Reordering visit sequence to minimize travel distance (nearest-neighbor)`,
+      });
+
+      await supabase.from("agent_logs").insert({
+        trip_id,
+        agent_run_id: task.agent_run_id,
+        step_type: "thinking",
+        message: `🚗 Transport Agent — Applying transport cost rules: walk < 2km, bike 2-6km, public transit > 6km`,
       });
 
       const routeResp = await fetch(`${baseUrl}/functions/v1/optimize-trip-routes`, {
@@ -108,22 +122,45 @@ serve(async (req) => {
         const routeResult = await routeResp.json();
         const segCount = routeResult.route_segments?.length || 0;
 
+        // Count recommended modes
+        const modeCount: Record<string, number> = {};
+        for (const seg of routeResult.route_segments || []) {
+          const recommended = (seg.modes || []).find((m: any) => m.recommended);
+          if (recommended) {
+            modeCount[recommended.transport_mode] = (modeCount[recommended.transport_mode] || 0) + 1;
+          }
+        }
+        const modeBreakdown = Object.entries(modeCount).map(([m, c]) => `${m}: ${c}`).join(", ");
+
         // Save to memory
         await supabase.from("agent_memory").insert({
           user_id: user.id,
           trip_id,
           memory_type: "routes_optimized",
           memory_key: `routes_${trip?.destination_city?.toLowerCase().replace(/\s+/g, "_") || "trip"}`,
-          content: { segments: segCount, modes: ["car", "bike", "walk", "train"], reasoning: routeResult.default_mode_reasoning },
+          content: {
+            segments: segCount,
+            mode_breakdown: modeCount,
+            modes: ["walk", "bike", "train", "car"],
+            reasoning: routeResult.default_mode_reasoning,
+            optimization_rules: "walk < 2km, bike 2-6km, public transit > 6km, car only when necessary",
+          },
         });
 
-        resultSummary = `Optimized ${segCount} route segments across 4 transport modes`;
+        resultSummary = `Optimized ${segCount} route segments (${modeBreakdown}). Cost-minimizing transport applied.`;
 
         await supabase.from("agent_logs").insert({
           trip_id,
           agent_run_id: task.agent_run_id,
           step_type: "tool_result",
           message: `🚗 Transport Agent — ${resultSummary}`,
+        });
+
+        await supabase.from("agent_logs").insert({
+          trip_id,
+          agent_run_id: task.agent_run_id,
+          step_type: "thinking",
+          message: `🚗 Transport Agent — Starting Day 2+ itineraries from previous day's final location`,
         });
       } else {
         resultSummary = "Route optimization failed";

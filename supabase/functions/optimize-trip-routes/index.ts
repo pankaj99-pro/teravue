@@ -137,12 +137,15 @@ For EACH pair, provide routes for all 4 modes:
 - walk: walking distance and time  
 - train: public transit / metro time and distance
 
-Rules for recommending default mode:
-- distance < 1.5 km → recommend walk
-- distance 1.5–5 km → recommend bike
-- distance > 5 km → recommend car or train
+TRANSPORT MODE RECOMMENDATION RULES (strict):
+- distance < 2 km → recommend walk (free, scenic, healthy)
+- distance 2–6 km → recommend bike (cheap, moderate speed)
+- distance > 6 km → recommend train/metro (public transport)
+- car/taxi → recommend ONLY when no public transport available or late night
 
-For each mode, provide a route_polyline as an array of [lat, lng] coordinate pairs (at least 5-8 waypoints following realistic roads/paths). Mark the recommended mode with recommended: true and include reasoning.`;
+Always minimize cost. Walking and biking are free/cheap, so prefer them when distance allows.
+
+For each mode, provide a route_polyline as an array of [lat, lng] coordinate pairs (at least 5-8 waypoints following realistic roads/paths). Mark the recommended mode with recommended: true and include reasoning explaining why this mode minimizes cost while being practical.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

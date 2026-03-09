@@ -117,14 +117,23 @@ Available data:
 - Hotels: ${JSON.stringify(memoryMap["hotels_found"] || "Not available")}
 - Restaurants: ${JSON.stringify(memoryMap["restaurants_found"] || "Not available")}
 - Attractions: ${JSON.stringify(memoryMap["attractions_found"] || "Not available")}
+- Route data: ${JSON.stringify(memoryMap["routes_optimized"] || "Not available")}
 
 Create a day-by-day itinerary that:
 1. Starts with arrival flight and ends with departure
 2. Includes hotel check-in/out
-3. Optimizes activity order by location proximity
-4. Balances busy days with rest
-5. Includes meal recommendations at found restaurants
-6. Stays within budget`;
+3. **CRITICAL: Optimizes visit order using nearest-neighbor algorithm** — for each day, visit the closest unvisited attraction next to minimize backtracking
+4. **CRITICAL: Each day starts from the previous day's last location** — Day 2 begins near where Day 1 ended, avoiding cross-city morning travel
+5. **Transport mode selection by distance:**
+   - < 2 km → Walking (free)
+   - 2–6 km → Bike (cheap)
+   - > 6 km → Public transport (metro/train)
+   - Car/taxi only when necessary (late night, heavy luggage)
+6. Clusters geographically close attractions on the same day
+7. Balances busy days with rest
+8. Includes meal recommendations at found restaurants (placed near that day's attractions)
+9. Stays within budget — minimize transport costs by preferring walking/biking
+10. Include travel time and transport mode between consecutive stops in the activity descriptions`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
