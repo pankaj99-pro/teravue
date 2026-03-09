@@ -64,6 +64,9 @@ When practical, hint at travel between stops in the title or location field.
 - Use descriptive titles like "Senso-ji Temple (Morning Visit)" not just "Temple"
 - All text fields MUST be in English
 - CRITICAL: Every stop MUST include accurate "lat" and "lng" coordinates
+- CRITICAL: Between each stop, add a brief transport hint in the title like "(🚶 5 min walk from previous)" or "(🚇 Metro 15 min)"
+- CRITICAL: The FIRST stop of Day 2, 3, 4... MUST be geographically near the LAST stop of the previous day. Example: if Day 1 ends at lat=24.58, lng=73.68 then Day 2's first stop must be within 1-2 km of that point.
+- CRITICAL: Within each day, sort stops by geographic proximity — pick the nearest unvisited stop as the next one (greedy nearest-neighbor). NEVER jump across the city and come back.
 
 For the image field, use one of these categories:
 - "airport" for airports/flights
