@@ -85,7 +85,9 @@ function formatDuration(min: number): string {
 export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, selectedMode, onModeChange }: MapPanelProps) {
   const stops = customStops ?? [];
   const segments = routeSegments ?? [];
-  const center: [number, number] = stops.length > 0 ? [stops[0].lat, stops[0].lng] : [20, 0];
+  const center: [number, number] = stops.length > 0 && isFinite(stops[0].lat) && isFinite(stops[0].lng)
+    ? [stops[0].lat, stops[0].lng]
+    : [20, 0];
 
   const [showRouteCard, setShowRouteCard] = useState(true);
 
