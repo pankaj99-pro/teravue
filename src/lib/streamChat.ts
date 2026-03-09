@@ -5,6 +5,7 @@ export type ChatMessage = { role: "user" | "assistant"; content: string };
 interface StreamCallbacks {
   onDelta: (text: string) => void;
   onToolCallStart?: (name: string) => void;
+  onToolCallDone?: (name: string) => void;
   onToolCall: (name: string, args: any) => Promise<void> | void;
   onDone: () => void;
   onError: (error: string) => void;
@@ -50,7 +51,38 @@ export async function streamTravelChat(messages: ChatMessage[], callbacks: Strea
       buffer = buffer.slice(newlineIndex + 1);
 
       if (line.endsWith("\r")) line = line.slice(0, -1);
-      if (line.startsWith(":") || line.trim() === "") continue;
+      if (line.trim() === "") continue;
+
+      // Handle named SSE events (tool_start, tool_done)
+      if (line.startsWith("event: ")) {
+        const eventName = line.slice(7).trim();
+        // Read the next data line for this event
+        const nextNl = buffer.indexOf("\n");
+        if (nextNl === -1) {
+          // Put the event line back and wait for more data
+          buffer = line + "\n" + buffer;
+          break;
+        }
+        let dataLine = buffer.slice(0, nextNl);
+        buffer = buffer.slice(nextNl + 1);
+        if (dataLine.endsWith("\r")) dataLine = dataLine.slice(0, -1);
+
+        if (dataLine.startsWith("data: ")) {
+          try {
+            const payload = JSON.parse(dataLine.slice(6).trim());
+            if (eventName === "tool_start" && payload.name) {
+              callbacks.onToolCallStart?.(payload.name);
+            } else if (eventName === "tool_done" && payload.name) {
+              callbacks.onToolCallDone?.(payload.name);
+            }
+          } catch {
+            // ignore parse errors for event data
+          }
+        }
+        continue;
+      }
+
+      if (line.startsWith(":")) continue;
       if (!line.startsWith("data: ")) continue;
 
       const jsonStr = line.slice(6).trim();
@@ -81,7 +113,7 @@ export async function streamTravelChat(messages: ChatMessage[], callbacks: Strea
         const choice = parsed.choices?.[0];
         if (!choice) continue;
 
-        // Handle error finish reasons (e.g. MALFORMED_FUNCTION_CALL from Gemini)
+        // Handle error finish reasons
         if (choice.finish_reason === "error") {
           console.error("Stream finish_reason error:", choice.native_finish_reason);
           callbacks.onError("AI failed to generate the itinerary. Please try again.");
@@ -93,12 +125,12 @@ export async function streamTravelChat(messages: ChatMessage[], callbacks: Strea
           callbacks.onDelta(delta.content);
         }
 
-        // Accumulate tool call chunks
+        // Accumulate tool call chunks (only for create_itinerary forwarded from backend)
         if (delta?.tool_calls) {
           for (const tc of delta.tool_calls) {
             if (tc.function?.name) {
               toolCallName = tc.function.name;
-              callbacks.onToolCallStart?.(toolCallName);
+              // Don't fire onToolCallStart here — it's already handled by the named event
             }
             if (tc.function?.arguments) toolCallArgs += tc.function.arguments;
           }
