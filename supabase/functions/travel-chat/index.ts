@@ -153,7 +153,7 @@ const CREATE_ITINERARY_TOOL = {
   type: "function",
   function: {
     name: "create_itinerary",
-    description: "Create the final structured travel itinerary. Call this LAST after all research is done.",
+    description: "Create the final structured travel itinerary. Call this LAST after all research is done. CRITICAL: Order stops using nearest-neighbor (closest unvisited next). Day N+1 MUST start from Day N's last stop location. Cluster nearby attractions on the same day to avoid backtracking.",
     parameters: {
       type: "object",
       properties: {
