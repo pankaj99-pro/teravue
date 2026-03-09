@@ -67,7 +67,9 @@ function FlyToActive({ activeStop, stops }: { activeStop: number; stops: MapStop
 
   useEffect(() => {
     const stop = stops.find((s) => s.id === activeStop);
-    if (stop) map.flyTo([stop.lat, stop.lng], 14, { duration: 1 });
+    if (stop && isFinite(stop.lat) && isFinite(stop.lng)) {
+      map.flyTo([stop.lat, stop.lng], 14, { duration: 1 });
+    }
   }, [activeStop, stops, map]);
 
   return null;
