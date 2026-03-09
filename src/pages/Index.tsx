@@ -141,6 +141,7 @@ export default function Index() {
         lat: s.lat!,
         lng: s.lng!,
         img: imageMap[s.image] || colosseumImg,
+        activityType: s.image, // pass activity type for flight detection
       }));
   }, [currentDayPlan]);
 
