@@ -106,6 +106,8 @@ serve(async (req) => {
       }
     }
 
+    await writeLog(run.id, "thinking", "🧠 Supervisor — Analyzing attraction distances for optimal route sequence");
+
     await writeLog(run.id, "thinking", "🧠 Supervisor — All search agents completed. Running budget analysis.");
 
     // Step 3: Run budget agent
