@@ -178,8 +178,8 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
           />
         )}
 
-        {stops.map((stop) => (
-          <Marker key={stop.id} position={[stop.lat, stop.lng]} icon={createNumberedIcon(stop.id, activeStop === stop.id)}>
+        {stops.map((stop, index) => (
+          <Marker key={stop.id} position={[stop.lat, stop.lng]} icon={createNumberedIcon(index + 1, activeStop === stop.id)}>
             <Popup>
               <div className="w-40 overflow-hidden rounded-lg">
                 <img src={stop.img} alt={stop.label} className="w-full h-20 object-cover" />
