@@ -93,6 +93,15 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
     : [20, 0];
 
   const [showRouteCard, setShowRouteCard] = useState(true);
+  // Track day changes to re-trigger animation
+  const [animKey, setAnimKey] = useState(0);
+  const prevDayRef = useRef(dayTitle);
+  useEffect(() => {
+    if (dayTitle !== prevDayRef.current) {
+      prevDayRef.current = dayTitle;
+      setAnimKey((k) => k + 1);
+    }
+  }, [dayTitle]);
 
   const config = modeConfig[selectedMode];
   const ModeIcon = config.icon;
