@@ -106,7 +106,7 @@ serve(async (req) => {
       }
     }
 
-    await writeLog(run.id, "thinking", "🧠 Supervisor — Analyzing attraction distances for optimal route sequence");
+    await writeLog(run.id, "thinking", "🧠 Supervisor — Analyzing train routes and intermediate stations for optimal multi-city travel order");
 
     await writeLog(run.id, "thinking", "🧠 Supervisor — All search agents completed. Running budget analysis.");
 
