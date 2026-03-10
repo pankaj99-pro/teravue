@@ -30,25 +30,45 @@ You MUST call these tools one at a time in sequence. After each tool result, bri
 ## ROUTE OPTIMIZATION RULES (CRITICAL)
 When building the final itinerary with create_itinerary, you MUST follow these optimization rules:
 
-### 1. Visit Sequence Optimization (Nearest-Neighbor)
-For each day, order attractions to minimize total travel distance:
-- Analyze all selected stops for the day
+### 1. ABSOLUTE RULE — Complete Each City Before Moving On
+For multi-city trips, once you arrive in a city, you MUST explore ALL planned attractions, restaurants, and activities in that city before traveling to the next city. NEVER leave a city and return to it later.
+
+WRONG pattern (backtracking):
+- Day 1: Travel to Agra
+- Day 2: Travel to Vrindavan
+- Day 3: Return to Agra ← VIOLATION
+- Day 4: Return to Vrindavan ← VIOLATION
+
+CORRECT pattern (forward progression):
+- Day 1: Travel to Agra
+- Day 2: Explore ALL Agra attractions (Taj Mahal, Agra Fort, etc.)
+- Day 3: Travel Agra → Vrindavan, explore Vrindavan
+- Day 4: Continue Vrindavan attractions, then return home
+
+### 2. City Visit Sequence (Geographic Logic)
+Determine the optimal order of cities BEFORE scheduling days:
+- Analyze which cities are along the same route/train line
+- Visit cities in geographic sequence (no zigzagging)
+- Example: If route is Origin → City A → City B → Origin, visit A fully, then B fully
+
+### 3. Visit Sequence Within a City (Nearest-Neighbor)
+Within each city, order attractions to minimize travel distance:
 - Start from the hotel or previous day's last location
 - Visit the nearest unvisited location next
 - Cluster geographically close attractions on the same day
-- AVOID backtracking (e.g. going north, then south, then north again)
+- AVOID intra-city backtracking
 
-### 2. Daily Starting Location Continuity
+### 4. Daily Starting Location Continuity
 Each day MUST begin near the last location visited the previous day.
 
-### 3. Transport Mode Selection
-Between each stop, mentally calculate the approximate distance and select transport:
+### 5. Transport Mode Selection
+Between each stop, select transport by distance:
 - distance < 2 km → Walk (free, healthy, scenic)
 - distance 2–6 km → Bike (cheap, moderate speed)
 - distance > 6 km → Public transport / Metro / Train
 - Car/taxi → Only when no other option or late at night
 
-### 4. Train-Based Multi-City Planning
+### 6. Train-Based Multi-City Planning
 When using trains for inter-city travel:
 - Set the stop's "image" to "train"
 - Include trainNumber, trainName, departureTime, arrivalTime, and intermediateStops
@@ -176,7 +196,7 @@ const CREATE_ITINERARY_TOOL = {
   type: "function",
   function: {
     name: "create_itinerary",
-    description: "Create the final structured travel itinerary. Call this LAST after all research is done. CRITICAL: Order stops using nearest-neighbor (closest unvisited next). Day N+1 MUST start from Day N's last stop location. For train trips, include trainNumber, trainName, departureTime, arrivalTime, and intermediateStops.",
+    description: "Create the final structured travel itinerary. Call this LAST after all research is done. ABSOLUTE RULE: For multi-city trips, complete ALL activities in one city before moving to the next — NEVER revisit a city. Order stops within each city using nearest-neighbor. Day N+1 starts from Day N's last location. For train trips, include trainNumber, trainName, departureTime, arrivalTime, and intermediateStops.",
     parameters: {
       type: "object",
       properties: {

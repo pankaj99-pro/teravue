@@ -127,25 +127,29 @@ Available data:
 - Route data: ${JSON.stringify(memoryMap["routes_optimized"] || "Not available")}
 
 Create a day-by-day itinerary that:
-1. **TRAIN-BASED MULTI-CITY PLANNING**: If train route data is available with an optimal city visiting order, follow that order strictly. Use the recommended trains with their numbers, departure/arrival times.
-2. For multi-city trips: arrive at the first destination city by train, explore its attractions, then take a train to the next city in optimal order.
-3. Include specific train numbers and names in transport activities (set activity_type to "train").
-4. List intermediate stops for train journeys when available.
-5. Starts with arrival (flight or train) and ends with departure.
-6. Includes hotel check-in/out in each city.
-7. **CRITICAL: Optimizes visit order using nearest-neighbor algorithm** — for each day within a city, visit the closest unvisited attraction next.
-8. **CRITICAL: Each day starts from the previous day's last location**.
-9. **Transport mode selection by distance (within a city):**
+1. **ABSOLUTE RULE — COMPLETE EACH CITY BEFORE MOVING ON**: Once you arrive in a city, explore ALL attractions, restaurants, and activities in that city across one or more days before traveling to the next city. NEVER leave a city and return to it later. No backtracking between cities.
+   - WRONG: Agra → Vrindavan → Agra again → Vrindavan again (backtracking)
+   - CORRECT: Agra (all days needed) → Vrindavan (all days needed) → Return home
+2. **CITY VISIT ORDER**: Determine the optimal geographic sequence of cities first. If train route data shows intermediate stops, visit cities in that route order.
+3. **TRAIN-BASED MULTI-CITY PLANNING**: If train route data is available with an optimal city visiting order, follow that order strictly. Use the recommended trains with their numbers, departure/arrival times.
+4. For multi-city trips: arrive at the first destination city, explore ALL its attractions over 1+ days, then take a train to the next city and explore ALL its attractions.
+5. Include specific train numbers and names in transport activities (set activity_type to "train").
+6. List intermediate stops for train journeys when available.
+7. Starts with arrival (flight or train) and ends with departure.
+8. Includes hotel check-in/out in each city.
+9. **WITHIN each city**: Optimizes visit order using nearest-neighbor algorithm — visit the closest unvisited attraction next.
+10. **Each day starts from the previous day's last location**.
+11. **Transport mode selection by distance (within a city):**
    - < 2 km → Walking (free)
    - 2–6 km → Bike (cheap)
    - > 6 km → Public transport (metro/train)
    - Car/taxi only when necessary
-10. Clusters geographically close attractions on the same day.
-11. Balances busy days with rest.
-12. Includes meal recommendations at found restaurants.
-13. Stays within budget.
-14. Include travel time and transport mode between consecutive stops.
-15. For train travel days, show: City A → Train [number] → City B (via intermediate stops if relevant).`;
+12. Clusters geographically close attractions on the same day.
+13. Balances busy days with rest.
+14. Includes meal recommendations at found restaurants.
+15. Stays within budget.
+16. Include travel time and transport mode between consecutive stops.
+17. For train travel days, show: City A → Train [number] → City B (via intermediate stops if relevant).`;
 
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
