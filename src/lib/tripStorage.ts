@@ -125,7 +125,7 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
       savedDays++;
 
       for (const stop of day.stops || []) {
-        const { error: activityError } = await supabase.from("activities").insert({
+        const insertData: Record<string, unknown> = {
           trip_day_id: tripDay.id,
           title: stop.title,
           location_name: stop.location || "",
@@ -134,7 +134,16 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
           activity_type: stop.image || "activity",
           latitude: stop.lat ?? null,
           longitude: stop.lng ?? null,
-        });
+        };
+
+        if (stop.trainNumber) insertData.train_number = stop.trainNumber;
+        if (stop.trainName) insertData.train_name = stop.trainName;
+        if (stop.intermediateStops?.length) insertData.intermediate_stops = stop.intermediateStops;
+        if (stop.departureTime) insertData.departure_time = stop.departureTime;
+        if (stop.arrivalTime) insertData.arrival_time = stop.arrivalTime;
+        if (stop.platform) insertData.platform = stop.platform;
+
+        const { error: activityError } = await supabase.from("activities").insert(insertData as any);
 
         if (activityError) {
           console.error("Failed to save activity:", activityError, "stop:", stop.title);
