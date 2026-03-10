@@ -264,6 +264,7 @@ serve(async (req) => {
         hotel_agent: "search_hotels",
         restaurant_agent: "search_restaurants",
         attraction_agent: "search_attractions",
+        train_agent: "search_trains",
       };
 
       const action = actionMap[task.agent_type];
