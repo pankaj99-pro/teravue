@@ -214,10 +214,17 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
           a.activity_type === "hotel" ? "View Booking"
           : a.activity_type === "restaurant" ? "Reserve Table"
           : a.activity_type === "airport" || a.activity_type === "transport" ? "View Details"
+          : a.activity_type === "train" ? "View Train"
           : "Book Ticket",
         image: a.activity_type || "activity",
         lat: a.latitude,
         lng: a.longitude,
+        trainNumber: a.train_number || undefined,
+        trainName: a.train_name || undefined,
+        intermediateStops: Array.isArray(a.intermediate_stops) ? a.intermediate_stops : undefined,
+        departureTime: a.departure_time || undefined,
+        arrivalTime: a.arrival_time || undefined,
+        platform: a.platform || undefined,
       })),
   }));
 

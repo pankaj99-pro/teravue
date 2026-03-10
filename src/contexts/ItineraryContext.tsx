@@ -11,6 +11,12 @@ export interface ItineraryStop {
   image: string;
   lat?: number;
   lng?: number;
+  trainNumber?: string;
+  trainName?: string;
+  intermediateStops?: string[];
+  departureTime?: string;
+  arrivalTime?: string;
+  platform?: string;
 }
 
 export interface DayPlan {
