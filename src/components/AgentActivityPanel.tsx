@@ -49,6 +49,7 @@ const statusBgColors: Record<string, string> = {
 export function AgentActivityPanel({ tripId, isRunning }: AgentActivityPanelProps) {
   const [agents, setAgents] = useState<AgentStatus[]>([
     { agent_type: "flight_agent", emoji: "✈️", label: "Flight Agent", status: "idle", result_summary: null },
+    { agent_type: "train_agent", emoji: "🚆", label: "Train Agent", status: "idle", result_summary: null },
     { agent_type: "hotel_agent", emoji: "🏨", label: "Hotel Agent", status: "idle", result_summary: null },
     { agent_type: "restaurant_agent", emoji: "🍝", label: "Restaurant Agent", status: "idle", result_summary: null },
     { agent_type: "attraction_agent", emoji: "📍", label: "Attraction Agent", status: "idle", result_summary: null },

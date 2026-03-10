@@ -104,6 +104,8 @@ serve(async (req) => {
     // Create tasks only for agents whose data doesn't exist yet
     const tasksToCreate = AGENT_DEFINITIONS
       .filter((def) => {
+        // Skip flight_agent when user prefers train travel
+        if (def.agent_type === "flight_agent" && prefer_train) return false;
         // Budget agent always runs (re-analyzes)
         if (def.agent_type === "budget_agent") return true;
         return !existingTypes.has(memoryTypeMap[def.agent_type]);
