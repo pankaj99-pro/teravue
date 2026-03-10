@@ -75,6 +75,40 @@ serve(async (req) => {
         };
         memoryType = "restaurants_found";
         break;
+      case "search_trains": {
+        // Call train-search edge function for multi-city route analysis
+        const trainResp = await fetch(`${baseUrl}/functions/v1/train-search`, {
+          method: "POST",
+          headers: { Authorization: authHeader, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "multi_city_route_analysis",
+            origin: parameters?.origin || parameters?.city || parameters?.destination || "Delhi",
+            destinations: parameters?.destinations || [parameters?.destination || parameters?.city || "Mumbai"],
+          }),
+        });
+
+        if (!trainResp.ok) {
+          const errorData = await trainResp.json().catch(() => ({ error: "Train search failed" }));
+          return new Response(JSON.stringify(errorData), {
+            status: trainResp.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const trainResults = await trainResp.json();
+        const trainKey = `trains_${(parameters?.city || parameters?.destination || "default").toLowerCase().replace(/\s+/g, "_")}`;
+        await supabase.from("agent_memory").insert({
+          user_id: user.id,
+          trip_id,
+          memory_type: "trains_found",
+          memory_key: trainKey,
+          content: trainResults,
+        });
+
+        return new Response(JSON.stringify({ memory_type: "trains_found", results: trainResults }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       case "search_attractions":
         // Use AI to generate attractions (no dedicated function exists)
         const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");

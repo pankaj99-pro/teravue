@@ -12,6 +12,7 @@ const AGENT_EMOJIS: Record<string, string> = {
   hotel_agent: "🏨",
   restaurant_agent: "🍝",
   attraction_agent: "📍",
+  train_agent: "🚆",
   budget_agent: "💰",
   transport_agent: "🚗",
 };
@@ -21,6 +22,7 @@ const AGENT_LABELS: Record<string, string> = {
   hotel_agent: "Hotel Agent",
   restaurant_agent: "Restaurant Agent",
   attraction_agent: "Attraction Agent",
+  train_agent: "Train Agent",
   budget_agent: "Budget Agent",
   transport_agent: "Transport Agent",
 };
@@ -262,6 +264,7 @@ serve(async (req) => {
         hotel_agent: "search_hotels",
         restaurant_agent: "search_restaurants",
         attraction_agent: "search_attractions",
+        train_agent: "search_trains",
       };
 
       const action = actionMap[task.agent_type];
