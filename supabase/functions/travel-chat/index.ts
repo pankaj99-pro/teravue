@@ -154,11 +154,29 @@ const SEARCH_ATTRACTIONS_TOOL = {
   },
 };
 
+const SEARCH_TRAINS_TOOL = {
+  type: "function",
+  function: {
+    name: "search_trains",
+    description: "Search for train connections between cities. Use this instead of search_flights when the user wants to travel by train.",
+    parameters: {
+      type: "object",
+      properties: {
+        origin: { type: "string", description: "Departure city" },
+        destination: { type: "string", description: "Arrival city" },
+        date: { type: "string", description: "Travel date (YYYY-MM-DD)" },
+        destinations: { type: "array", items: { type: "string" }, description: "Multiple destination cities for multi-city route optimization" },
+      },
+      required: ["origin"],
+    },
+  },
+};
+
 const CREATE_ITINERARY_TOOL = {
   type: "function",
   function: {
     name: "create_itinerary",
-    description: "Create the final structured travel itinerary. Call this LAST after all research is done. CRITICAL: Order stops using nearest-neighbor (closest unvisited next). Day N+1 MUST start from Day N's last stop location. Cluster nearby attractions on the same day to avoid backtracking.",
+    description: "Create the final structured travel itinerary. Call this LAST after all research is done. CRITICAL: Order stops using nearest-neighbor (closest unvisited next). Day N+1 MUST start from Day N's last stop location. For train trips, include trainNumber, trainName, departureTime, arrivalTime, and intermediateStops.",
     parameters: {
       type: "object",
       properties: {
@@ -188,10 +206,16 @@ const CREATE_ITINERARY_TOOL = {
                     location: { type: "string" },
                     price: { type: "string", description: "e.g. '$130.00'" },
                     priceLabel: { type: "string", description: "e.g. 'per night'" },
-                    buttonLabel: { type: "string", description: "CTA like 'Book a Flight'" },
-                    image: { type: "string", description: "Category: airport, hotel, restaurant, landmark, activity, transport" },
+                    buttonLabel: { type: "string", description: "CTA like 'Book a Flight' or 'View Train'" },
+                    image: { type: "string", description: "Category: airport, hotel, restaurant, landmark, activity, transport, train" },
                     lat: { type: "number", description: "Latitude" },
                     lng: { type: "number", description: "Longitude" },
+                    trainNumber: { type: "string", description: "Train number (for train stops)" },
+                    trainName: { type: "string", description: "Train name (for train stops)" },
+                    departureTime: { type: "string", description: "Departure time (for train stops, e.g. '08:30 AM')" },
+                    arrivalTime: { type: "string", description: "Arrival time (for train stops, e.g. '02:45 PM')" },
+                    intermediateStops: { type: "array", items: { type: "string" }, description: "Key intermediate stations for train journeys" },
+                    platform: { type: "string", description: "Platform number (for train stops)" },
                   },
                   required: ["id", "time", "title", "location", "buttonLabel", "image", "lat", "lng"],
                 },
@@ -209,6 +233,7 @@ const CREATE_ITINERARY_TOOL = {
 
 const ALL_TOOLS = [
   SEARCH_FLIGHTS_TOOL,
+  SEARCH_TRAINS_TOOL,
   SEARCH_HOTELS_TOOL,
   SEARCH_RESTAURANTS_TOOL,
   SEARCH_ATTRACTIONS_TOOL,
