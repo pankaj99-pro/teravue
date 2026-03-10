@@ -1,11 +1,12 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Car, Bike, Train, Footprints, Zap, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Car, Bike, Train, Footprints, X } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
 import { useOSRMRoutes } from "@/hooks/useOSRMRoutes";
 import { AnimatedPolyline } from "@/components/AnimatedPolyline";
+import { SegmentDetailsPanel, TrainSegmentInfo, RoadSegmentInfo } from "@/components/SegmentDetailsPanel";
 
 export interface MapStop {
   id: number;
@@ -14,6 +15,12 @@ export interface MapStop {
   lng: number;
   img: string;
   activityType?: string;
+  trainNumber?: string;
+  trainName?: string;
+  departureTime?: string;
+  arrivalTime?: string;
+  platform?: string;
+  intermediateStops?: string[];
 }
 
 export interface RouteSegment {
@@ -39,13 +46,14 @@ interface MapPanelProps {
 }
 
 const modeConfig: Record<TransportMode, { icon: typeof Car; label: string; color: string; description: string }> = {
-  car: { icon: Car, label: "Car", color: "hsl(210,100%,60%)", description: "Fastest by road. Includes taxi and rideshare options." },
-  bike: { icon: Bike, label: "Bike", color: "hsl(142,70%,50%)", description: "Eco-friendly cycling through bike lanes and streets." },
-  walk: { icon: Footprints, label: "Walk", color: "hsl(32,95%,60%)", description: "Scenic walk — great for short distances and sightseeing." },
-  train: { icon: Train, label: "Train", color: "hsl(270,65%,60%)", description: "Metro or regional rail. Fast for longer distances." },
+  car: { icon: Car, label: "Car", color: "hsl(210,100%,60%)", description: "Fastest by road." },
+  bike: { icon: Bike, label: "Bike", color: "hsl(142,70%,50%)", description: "Eco-friendly cycling." },
+  walk: { icon: Footprints, label: "Walk", color: "hsl(32,95%,60%)", description: "Scenic walk for short distances." },
+  train: { icon: Train, label: "Train", color: "hsl(330,80%,60%)", description: "Rail travel between cities." },
 };
 
 const ALL_MODES: TransportMode[] = ["walk", "bike", "car", "train"];
+const TRAIN_COLOR = "hsl(330,80%,60%)"; // Pink
 
 function createNumberedIcon(id: number, isActive: boolean) {
   return L.divIcon({
@@ -67,14 +75,12 @@ function createNumberedIcon(id: number, isActive: boolean) {
 
 function FlyToActive({ activeStop, stops }: { activeStop: number; stops: MapStop[] }) {
   const map = useMap();
-
   useEffect(() => {
     const stop = stops.find((s) => s.id === activeStop);
     if (stop && isFinite(stop.lat) && isFinite(stop.lng)) {
       map.flyTo([stop.lat, stop.lng], 14, { duration: 1 });
     }
   }, [activeStop, stops, map]);
-
   return null;
 }
 
@@ -85,6 +91,13 @@ function formatDuration(min: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
+interface SelectedSegment {
+  index: number;
+  type: "train" | "road";
+  trainInfo?: TrainSegmentInfo;
+  roadInfo?: RoadSegmentInfo;
+}
+
 export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, selectedMode, onModeChange }: MapPanelProps) {
   const stops = customStops ?? [];
   const segments = routeSegments ?? [];
@@ -92,21 +105,20 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
     ? [stops[0].lat, stops[0].lng]
     : [20, 0];
 
-  const [showRouteCard, setShowRouteCard] = useState(true);
-  // Track day changes to re-trigger animation
+  const [selectedSegment, setSelectedSegment] = useState<SelectedSegment | null>(null);
   const [animKey, setAnimKey] = useState(0);
   const prevDayRef = useRef(dayTitle);
+
   useEffect(() => {
     if (dayTitle !== prevDayRef.current) {
       prevDayRef.current = dayTitle;
       setAnimKey((k) => k + 1);
+      setSelectedSegment(null);
     }
   }, [dayTitle]);
 
   const config = modeConfig[selectedMode];
-  const ModeIcon = config.icon;
 
-  // Build activity types map for OSRM hook
   const activityTypes = useMemo(() => {
     const map: Record<number, string> = {};
     for (const s of stops) {
@@ -115,27 +127,48 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
     return map;
   }, [stops]);
 
-  // Fetch real road polylines from OSRM
   const { routes: osrmRoutes } = useOSRMRoutes(stops, activityTypes);
 
-  const totals = useMemo(() => {
-    let dist = 0;
-    let dur = 0;
+  // Detect which segments are train segments
+  const segmentTypes = useMemo(() => {
+    return stops.slice(0, -1).map((from, i) => {
+      const to = stops[i + 1];
+      const isTrain =
+        from.activityType === "train" || to.activityType === "train" ||
+        !!from.trainNumber || !!to.trainNumber;
+      return { from, to, isTrain };
+    });
+  }, [stops]);
 
-    for (const seg of segments) {
-      const m = seg.modes.find((md) => md.transport_mode === selectedMode);
-      if (m) {
-        dist += m.distance_km;
-        dur += m.duration_minutes;
-      }
+  const handleSegmentClick = useCallback((segIndex: number) => {
+    const segType = segmentTypes[segIndex];
+    if (!segType) return;
+
+    if (segType.isTrain) {
+      // Find the train stop (the one with train metadata)
+      const trainStop = segType.from.trainNumber ? segType.from : segType.to;
+      const trainInfo: TrainSegmentInfo = {
+        trainNumber: trainStop.trainNumber,
+        trainName: trainStop.trainName,
+        departureStation: segType.from.label,
+        arrivalStation: segType.to.label,
+        departureTime: trainStop.departureTime,
+        arrivalTime: trainStop.arrivalTime,
+        platform: trainStop.platform,
+        intermediateStops: trainStop.intermediateStops,
+      };
+      setSelectedSegment({ index: segIndex, type: "train", trainInfo });
+    } else {
+      const seg = segments[segIndex];
+      const roadInfo: RoadSegmentInfo = seg
+        ? { from: seg.from, to: seg.to, modes: seg.modes }
+        : { from: segType.from.label, to: segType.to.label, modes: [] };
+      setSelectedSegment({ index: segIndex, type: "road", roadInfo });
     }
-
-    return { distance: dist.toFixed(1), duration: formatDuration(dur) };
-  }, [segments, selectedMode]);
+  }, [segmentTypes, segments]);
 
   const handleModeChange = (mode: TransportMode) => {
     onModeChange(mode);
-    setShowRouteCard(true);
   };
 
   return (
@@ -153,45 +186,39 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
           attribution='&copy; <a href="https://carto.com/">CARTO</a>'
         />
 
-        {/* Render real road-following polylines */}
-        {osrmRoutes.map((route, i) => (
-          <AnimatedPolyline
-            key={`route-${route.fromId}-${route.toId}-${animKey}`}
-            positions={route.coordinates}
-            color={route.isFlight ? "hsl(0, 0%, 60%)" : config.color}
-            weight={route.isFlight ? 2 : 4}
-            opacity={0.85}
-            dashArray={
-              route.isFlight
-                ? "8 12"
-                : selectedMode === "walk"
-                ? "6 8"
-                : selectedMode === "bike"
-                ? "12 6"
-                : undefined
-            }
-            isFlight={route.isFlight}
-            delay={i * 400}
-            duration={700}
-          />
-        ))}
+        {/* Render road-following polylines with train detection */}
+        {osrmRoutes.map((route, i) => {
+          const isTrain = segmentTypes[i]?.isTrain ?? false;
+          const segColor = isTrain ? TRAIN_COLOR : route.isFlight ? "hsl(0, 0%, 60%)" : config.color;
+          const segWeight = isTrain ? 5 : route.isFlight ? 2 : 4;
 
-        {/* Fallback: if OSRM hasn't loaded yet, show straight lines */}
-        {osrmRoutes.length === 0 && stops.length > 1 && (
-          <Polyline
-            positions={stops
-              .filter((s) => isFinite(s.lat) && isFinite(s.lng))
-              .map((s) => [s.lat, s.lng] as [number, number])}
-            pathOptions={{
-              color: config.color,
-              weight: 3,
-              opacity: 0.4,
-              dashArray: "4 8",
-            }}
-          />
-        )}
+          return (
+            <AnimatedPolyline
+              key={`route-${route.fromId}-${route.toId}-${animKey}`}
+              positions={route.coordinates}
+              color={segColor}
+              weight={segWeight}
+              opacity={0.85}
+              dashArray={
+                isTrain
+                  ? "12 8"
+                  : route.isFlight
+                  ? "8 12"
+                  : selectedMode === "walk"
+                  ? "6 8"
+                  : selectedMode === "bike"
+                  ? "12 6"
+                  : undefined
+              }
+              isFlight={route.isFlight}
+              delay={i * 400}
+              duration={700}
+              onClick={() => handleSegmentClick(i)}
+            />
+          );
+        })}
 
-        {/* Fallback: if OSRM hasn't loaded yet, show straight lines */}
+        {/* Fallback straight lines */}
         {osrmRoutes.length === 0 && stops.length > 1 && (
           <Polyline
             positions={stops
@@ -220,95 +247,29 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         <FlyToActive activeStop={activeStop} stops={stops} />
       </MapContainer>
 
+      {/* Day title */}
       <div className="absolute top-4 right-4 z-[1000] bg-card/90 backdrop-blur-md border border-glass-border shadow-lg rounded-xl px-4 py-2.5 text-sm text-foreground font-semibold font-display">
         {dayTitle || "No day selected"}
       </div>
 
+      {/* Segment details panel - shown on path click */}
       <AnimatePresence>
-        {showRouteCard && segments.length > 0 && (
-          <motion.div
-            className="absolute bottom-20 left-4 z-[1000] bg-[hsl(225,25%,11%)] border border-glass-border shadow-2xl rounded-xl p-4 w-72 space-y-3"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${config.color}20` }}>
-                  <ModeIcon className="w-4 h-4" style={{ color: config.color }} />
-                </div>
-                <span className="text-sm font-semibold text-foreground font-display">{config.label} Route</span>
-              </div>
-              <button
-                onClick={() => setShowRouteCard(false)}
-                className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="flex items-baseline gap-3">
-              <p className="text-2xl font-bold text-foreground font-display">{totals.duration}</p>
-              <p className="text-sm text-muted-foreground font-medium">{totals.distance} km total</p>
-            </div>
-
-            <div className="flex items-start gap-2.5 bg-muted/30 rounded-lg px-3 py-2.5">
-              <Zap className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-foreground/80 leading-relaxed">{config.description}</p>
-            </div>
-
-            <div className="space-y-2 pt-2 border-t border-border/40">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Segments</p>
-              {segments.map((seg, i) => {
-                const modeData = seg.modes.find((m) => m.transport_mode === selectedMode);
-                if (!modeData) return null;
-
-                return (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <span className="text-foreground/70 truncate flex-1 mr-3">{seg.from} → {seg.to}</span>
-                    <span className="text-foreground font-semibold whitespace-nowrap">{formatDuration(modeData.duration_minutes)}</span>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="grid grid-cols-4 gap-1.5 pt-2 border-t border-border/40">
-              {ALL_MODES.map((mode) => {
-                const mc = modeConfig[mode];
-                const Icon = mc.icon;
-                let totalDur = 0;
-
-                for (const seg of segments) {
-                  const m = seg.modes.find((md) => md.transport_mode === mode);
-                  if (m) totalDur += m.duration_minutes;
-                }
-
-                const isSelected = mode === selectedMode;
-
-                return (
-                  <button
-                    key={mode}
-                    onClick={() => handleModeChange(mode)}
-                    className={`flex flex-col items-center gap-1 py-2 rounded-lg transition-all ${
-                      isSelected ? "bg-primary/15 border border-primary/30" : "hover:bg-muted/40 border border-transparent"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" style={{ color: isSelected ? mc.color : "hsl(215,20%,55%)" }} />
-                    <span className={`text-[10px] font-semibold ${isSelected ? "text-foreground" : "text-muted-foreground"}`}>
-                      {formatDuration(totalDur)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
+        {selectedSegment && (
+          <SegmentDetailsPanel
+            type={selectedSegment.type}
+            trainInfo={selectedSegment.trainInfo}
+            roadInfo={selectedSegment.roadInfo}
+            selectedMode={selectedMode}
+            onModeChange={handleModeChange}
+            onClose={() => setSelectedSegment(null)}
+          />
         )}
       </AnimatePresence>
 
-      {segments.length === 0 && stops.length > 0 && (
+      {/* Empty state messages */}
+      {segments.length === 0 && stops.length > 0 && !selectedSegment && (
         <div className="absolute bottom-20 left-4 z-[1000] rounded-xl border border-border bg-card/95 px-4 py-3 text-xs text-muted-foreground shadow-lg">
-          Route details are unavailable for this day.
+          Click a path on the map to view travel details.
         </div>
       )}
 
@@ -320,6 +281,7 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         </div>
       )}
 
+      {/* Transport mode buttons on right side */}
       <div className="absolute right-4 top-1/2 -translate-y-1/2 z-[1000] flex flex-col gap-2">
         {ALL_MODES.map((mode) => {
           const mc = modeConfig[mode];
@@ -342,6 +304,18 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
             </button>
           );
         })}
+      </div>
+
+      {/* Legend */}
+      <div className="absolute bottom-4 right-4 z-[1000] bg-card/90 backdrop-blur-md border border-glass-border rounded-lg px-3 py-2 flex items-center gap-3 text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-0.5 rounded" style={{ background: TRAIN_COLOR }} />
+          <span>Train</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-0.5 rounded" style={{ background: config.color }} />
+          <span>Road</span>
+        </div>
       </div>
     </div>
   );
