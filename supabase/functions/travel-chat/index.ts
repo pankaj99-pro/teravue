@@ -310,8 +310,26 @@ async function executeSearchAttractions(args: any, apiKey: string): Promise<stri
   return data.choices?.[0]?.message?.content || JSON.stringify({ attractions: [] });
 }
 
+async function executeSearchTrains(args: any, apiKey: string): Promise<string> {
+  const resp = await fetch(AI_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      messages: [
+        { role: "system", content: "Generate realistic train options between cities. Include train numbers, names, departure/arrival times, duration, intermediate stops, classes, and prices. For multi-city trips, analyze the route and determine the optimal visiting order based on train routes and intermediate stations. Return as JSON." },
+        { role: "user", content: `Trains from ${args.origin} to ${args.destination || (args.destinations || []).join(", ")}. ${args.date ? `Date: ${args.date}.` : ""} ${args.destinations ? `Multi-city destinations: ${args.destinations.join(", ")}. Determine optimal visiting order based on train route connections.` : ""}` },
+      ],
+    }),
+  });
+  if (!resp.ok) return JSON.stringify({ error: "Train search unavailable", trains: [] });
+  const data = await resp.json();
+  return data.choices?.[0]?.message?.content || JSON.stringify({ trains: [] });
+}
+
 const TOOL_EXECUTORS: Record<string, (args: any, apiKey: string) => Promise<string>> = {
   search_flights: executeSearchFlights,
+  search_trains: executeSearchTrains,
   search_hotels: executeSearchHotels,
   search_restaurants: executeSearchRestaurants,
   search_attractions: executeSearchAttractions,
