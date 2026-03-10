@@ -29,6 +29,7 @@ const agentIcons: Record<string, typeof Plane> = {
   attraction_agent: MapPin,
   budget_agent: DollarSign,
   transport_agent: Car,
+  train_agent: Train,
 };
 
 const statusColors: Record<string, string> = {
