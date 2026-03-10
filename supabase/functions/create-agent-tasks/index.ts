@@ -34,6 +34,11 @@ const AGENT_DEFINITIONS = [
       `Analyze all collected costs (flights, hotels, activities) for the ${trip.destination_city} trip. Total budget: $${trip.estimated_budget}. Ensure itinerary stays within budget and suggest alternatives if over.`,
   },
   {
+    agent_type: "train_agent",
+    task_template: (trip: any) =>
+      `Search train connections for travel to/from/between cities for the ${trip.destination_city} trip. Find available trains, routes, intermediate stops, and determine optimal multi-city travel order. Origin: ${trip.destination_city}. Dates: ${trip.start_date} to ${trip.end_date}.`,
+  },
+  {
     agent_type: "transport_agent",
     task_template: (trip: any) =>
       `Analyze distances between planned attractions in ${trip.destination_city} and determine optimal transportation modes (car, bike, walk, train) for each segment. Calculate routes for all modes.`,
