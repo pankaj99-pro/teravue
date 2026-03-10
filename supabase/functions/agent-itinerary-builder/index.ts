@@ -120,23 +120,30 @@ Available data:
 - Hotels: ${JSON.stringify(memoryMap["hotels_found"] || "Not available")}
 - Restaurants: ${JSON.stringify(memoryMap["restaurants_found"] || "Not available")}
 - Attractions: ${JSON.stringify(memoryMap["attractions_found"] || "Not available")}
+- Train routes: ${JSON.stringify(memoryMap["trains_found"] || "Not available")}
 - Route data: ${JSON.stringify(memoryMap["routes_optimized"] || "Not available")}
 
 Create a day-by-day itinerary that:
-1. Starts with arrival flight and ends with departure
-2. Includes hotel check-in/out
-3. **CRITICAL: Optimizes visit order using nearest-neighbor algorithm** — for each day, visit the closest unvisited attraction next to minimize backtracking
-4. **CRITICAL: Each day starts from the previous day's last location** — Day 2 begins near where Day 1 ended, avoiding cross-city morning travel
-5. **Transport mode selection by distance:**
+1. **TRAIN-BASED MULTI-CITY PLANNING**: If train route data is available with an optimal city visiting order, follow that order strictly. Use the recommended trains with their numbers, departure/arrival times.
+2. For multi-city trips: arrive at the first destination city by train, explore its attractions, then take a train to the next city in optimal order.
+3. Include specific train numbers and names in transport activities (set activity_type to "train").
+4. List intermediate stops for train journeys when available.
+5. Starts with arrival (flight or train) and ends with departure.
+6. Includes hotel check-in/out in each city.
+7. **CRITICAL: Optimizes visit order using nearest-neighbor algorithm** — for each day within a city, visit the closest unvisited attraction next.
+8. **CRITICAL: Each day starts from the previous day's last location**.
+9. **Transport mode selection by distance (within a city):**
    - < 2 km → Walking (free)
    - 2–6 km → Bike (cheap)
    - > 6 km → Public transport (metro/train)
-   - Car/taxi only when necessary (late night, heavy luggage)
-6. Clusters geographically close attractions on the same day
-7. Balances busy days with rest
-8. Includes meal recommendations at found restaurants (placed near that day's attractions)
-9. Stays within budget — minimize transport costs by preferring walking/biking
-10. Include travel time and transport mode between consecutive stops in the activity descriptions`;
+   - Car/taxi only when necessary
+10. Clusters geographically close attractions on the same day.
+11. Balances busy days with rest.
+12. Includes meal recommendations at found restaurants.
+13. Stays within budget.
+14. Include travel time and transport mode between consecutive stops.
+15. For train travel days, show: City A → Train [number] → City B (via intermediate stops if relevant).`;
+
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
