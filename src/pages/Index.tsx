@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { TripHeader } from "@/components/TripHeader";
 import { ItineraryCard, ItineraryItem, TravelSegment } from "@/components/ItineraryCard";
+import { TrainScheduleCard } from "@/components/TrainScheduleCard";
 import { MapPanel, TransportMode, RouteSegment } from "@/components/MapPanel";
 import { useItinerary } from "@/contexts/ItineraryContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +23,7 @@ const imageMap: Record<string, string> = {
   landmark: colosseumImg,
   activity: colosseumImg,
   transport: airportImg,
+  train: airportImg,
 };
 
 export default function Index() {
@@ -313,18 +315,83 @@ export default function Index() {
                       No activities found for this day.
                     </div>
                   ) : (
-                    currentItems.map((item, i) => (
-                      <ItineraryCard
-                        key={item.id}
-                        item={item}
-                        isActive={activeStop === item.id}
-                        onClick={() => setActiveStop(item.id)}
-                        index={i}
-                        isLast={i === currentItems.length - 1}
-                        selectedMode={transportMode}
-                        travelSegment={travelSegments[i] || undefined}
-                      />
-                    ))
+                    currentItems.map((item, i) => {
+                      // Check if this is a train activity
+                      const stop = currentDayPlan?.stops[i];
+                      const isTrain = stop?.image === "train" || !!stop?.trainNumber;
+
+                      if (isTrain && stop) {
+                        // Extract from/to from title like "Jabalpur → Agra" or use location
+                        const parts = stop.title.split("→").map(s => s.trim());
+                        const from = parts[0] || stop.location;
+                        const to = parts[1] || stop.location;
+
+                        return (
+                          <div key={item.id}>
+                            <motion.div
+                              className="flex items-stretch gap-3"
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.4, delay: i * 0.1 }}
+                            >
+                              <div className="flex flex-col items-center flex-shrink-0 pt-3">
+                                <motion.div
+                                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                                    activeStop === item.id
+                                      ? "bg-primary text-primary-foreground"
+                                      : "bg-muted text-muted-foreground border border-border"
+                                  }`}
+                                  animate={{
+                                    scale: activeStop === item.id ? 1.2 : 1,
+                                  }}
+                                >
+                                  {item.id}
+                                </motion.div>
+                                {i < currentItems.length - 1 && (
+                                  <div className="w-0.5 flex-1 bg-border opacity-40 mt-1.5" style={{ minHeight: 16 }} />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <TrainScheduleCard
+                                  trainNumber={stop.trainNumber}
+                                  trainName={stop.trainName}
+                                  departureTime={stop.departureTime || stop.time}
+                                  arrivalTime={stop.arrivalTime}
+                                  fromLocation={from}
+                                  toLocation={to}
+                                  intermediateStops={stop.intermediateStops}
+                                  platform={stop.platform}
+                                  price={stop.price}
+                                  isActive={activeStop === item.id}
+                                  onClick={() => setActiveStop(item.id)}
+                                  index={i}
+                                />
+                              </div>
+                            </motion.div>
+                            {travelSegments[i] && (
+                              <div className="flex items-stretch gap-3 py-1.5">
+                                <div className="flex flex-col items-center flex-shrink-0">
+                                  <div className="w-0.5 flex-1 bg-border opacity-40" style={{ minHeight: 8 }} />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <ItineraryCard
+                          key={item.id}
+                          item={item}
+                          isActive={activeStop === item.id}
+                          onClick={() => setActiveStop(item.id)}
+                          index={i}
+                          isLast={i === currentItems.length - 1}
+                          selectedMode={transportMode}
+                          travelSegment={travelSegments[i] || undefined}
+                        />
+                      );
+                    })
                   )}
                 </motion.div>
               </AnimatePresence>

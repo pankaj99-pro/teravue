@@ -8,13 +8,18 @@ const corsHeaders = {
 
 const AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-const SYSTEM_PROMPT = `You are TERAVUE AI — a world-class agentic travel planner. You help users plan trips by researching flights, hotels, restaurants, and attractions, then building a detailed day-by-day itinerary.
+const SYSTEM_PROMPT = `You are TERAVUE AI — a world-class agentic travel planner. You help users plan trips by researching flights, trains, hotels, restaurants, and attractions, then building a detailed day-by-day itinerary.
 
 IMPORTANT: Always respond in English only, regardless of the destination.
 
+## Transport Mode Detection
+- If the user mentions "train", "rail", "railway", or specific train names → use "search_trains" instead of "search_flights"
+- If the user mentions "flight", "fly", "airplane" → use "search_flights"
+- If not specified, default to "search_flights"
+
 ## Agentic Workflow
 When a user asks you to plan a trip, follow this sequential process:
-1. First call "search_flights" to find flight options
+1. First call "search_flights" OR "search_trains" (based on user preference) to find transport options
 2. Then call "search_hotels" to find accommodation
 3. Then call "search_restaurants" to find dining options
 4. Then call "search_attractions" to find must-visit places
@@ -33,15 +38,8 @@ For each day, order attractions to minimize total travel distance:
 - Cluster geographically close attractions on the same day
 - AVOID backtracking (e.g. going north, then south, then north again)
 
-Example — WRONG order: Colosseum → Trevi Fountain → Roman Forum → Pantheon
-CORRECT order: Colosseum → Roman Forum → Pantheon → Trevi Fountain
-(because Roman Forum is next to Colosseum, Pantheon is between Forum and Trevi)
-
 ### 2. Daily Starting Location Continuity
-Each day MUST begin near the last location visited the previous day:
-- Day 1 ends at "Trastevere Restaurant" → Day 2 starts from Trastevere area
-- This avoids unnecessary cross-city travel each morning
-- The hotel can serve as the starting point for Day 1
+Each day MUST begin near the last location visited the previous day.
 
 ### 3. Transport Mode Selection
 Between each stop, mentally calculate the approximate distance and select transport:
@@ -49,10 +47,13 @@ Between each stop, mentally calculate the approximate distance and select transp
 - distance 2–6 km → Bike (cheap, moderate speed)
 - distance > 6 km → Public transport / Metro / Train
 - Car/taxi → Only when no other option or late at night
-Always minimize expensive transport. Prefer walking when possible.
 
-### 4. Route Information in Stop Titles
-When practical, hint at travel between stops in the title or location field.
+### 4. Train-Based Multi-City Planning
+When using trains for inter-city travel:
+- Set the stop's "image" to "train"
+- Include trainNumber, trainName, departureTime, arrivalTime, and intermediateStops
+- Title format: "City A → City B (Train 12345)"
+- Visit cities in the order that follows the train route to minimize backtracking
 
 ## Itinerary Guidelines
 - Create realistic times, locations, and prices
@@ -61,12 +62,12 @@ When practical, hint at travel between stops in the title or location field.
 - Price in USD
 - Each day should have 3-5 stops
 - Always include arrival/departure logistics
-- Use descriptive titles like "Senso-ji Temple (Morning Visit)" not just "Temple"
+- Use descriptive titles
 - All text fields MUST be in English
 - CRITICAL: Every stop MUST include accurate "lat" and "lng" coordinates
-- CRITICAL: Between each stop, add a brief transport hint in the title like "(🚶 5 min walk from previous)" or "(🚇 Metro 15 min)"
-- CRITICAL: The FIRST stop of Day 2, 3, 4... MUST be geographically near the LAST stop of the previous day. Example: if Day 1 ends at lat=24.58, lng=73.68 then Day 2's first stop must be within 1-2 km of that point.
-- CRITICAL: Within each day, sort stops by geographic proximity — pick the nearest unvisited stop as the next one (greedy nearest-neighbor). NEVER jump across the city and come back.
+- CRITICAL: Between each stop, add a brief transport hint in the title
+- CRITICAL: The FIRST stop of Day 2, 3, 4... MUST be geographically near the LAST stop of the previous day
+- CRITICAL: Within each day, sort stops by geographic proximity
 
 For the image field, use one of these categories:
 - "airport" for airports/flights
@@ -75,6 +76,7 @@ For the image field, use one of these categories:
 - "landmark" for sightseeing/attractions
 - "activity" for experiences/tours
 - "transport" for transportation
+- "train" for train journeys (inter-city rail travel)
 
 If the user asks a general travel question (not requesting a full itinerary), just answer conversationally without calling tools.`;
 
@@ -152,11 +154,29 @@ const SEARCH_ATTRACTIONS_TOOL = {
   },
 };
 
+const SEARCH_TRAINS_TOOL = {
+  type: "function",
+  function: {
+    name: "search_trains",
+    description: "Search for train connections between cities. Use this instead of search_flights when the user wants to travel by train.",
+    parameters: {
+      type: "object",
+      properties: {
+        origin: { type: "string", description: "Departure city" },
+        destination: { type: "string", description: "Arrival city" },
+        date: { type: "string", description: "Travel date (YYYY-MM-DD)" },
+        destinations: { type: "array", items: { type: "string" }, description: "Multiple destination cities for multi-city route optimization" },
+      },
+      required: ["origin"],
+    },
+  },
+};
+
 const CREATE_ITINERARY_TOOL = {
   type: "function",
   function: {
     name: "create_itinerary",
-    description: "Create the final structured travel itinerary. Call this LAST after all research is done. CRITICAL: Order stops using nearest-neighbor (closest unvisited next). Day N+1 MUST start from Day N's last stop location. Cluster nearby attractions on the same day to avoid backtracking.",
+    description: "Create the final structured travel itinerary. Call this LAST after all research is done. CRITICAL: Order stops using nearest-neighbor (closest unvisited next). Day N+1 MUST start from Day N's last stop location. For train trips, include trainNumber, trainName, departureTime, arrivalTime, and intermediateStops.",
     parameters: {
       type: "object",
       properties: {
@@ -186,10 +206,16 @@ const CREATE_ITINERARY_TOOL = {
                     location: { type: "string" },
                     price: { type: "string", description: "e.g. '$130.00'" },
                     priceLabel: { type: "string", description: "e.g. 'per night'" },
-                    buttonLabel: { type: "string", description: "CTA like 'Book a Flight'" },
-                    image: { type: "string", description: "Category: airport, hotel, restaurant, landmark, activity, transport" },
+                    buttonLabel: { type: "string", description: "CTA like 'Book a Flight' or 'View Train'" },
+                    image: { type: "string", description: "Category: airport, hotel, restaurant, landmark, activity, transport, train" },
                     lat: { type: "number", description: "Latitude" },
                     lng: { type: "number", description: "Longitude" },
+                    trainNumber: { type: "string", description: "Train number (for train stops)" },
+                    trainName: { type: "string", description: "Train name (for train stops)" },
+                    departureTime: { type: "string", description: "Departure time (for train stops, e.g. '08:30 AM')" },
+                    arrivalTime: { type: "string", description: "Arrival time (for train stops, e.g. '02:45 PM')" },
+                    intermediateStops: { type: "array", items: { type: "string" }, description: "Key intermediate stations for train journeys" },
+                    platform: { type: "string", description: "Platform number (for train stops)" },
                   },
                   required: ["id", "time", "title", "location", "buttonLabel", "image", "lat", "lng"],
                 },
@@ -207,6 +233,7 @@ const CREATE_ITINERARY_TOOL = {
 
 const ALL_TOOLS = [
   SEARCH_FLIGHTS_TOOL,
+  SEARCH_TRAINS_TOOL,
   SEARCH_HOTELS_TOOL,
   SEARCH_RESTAURANTS_TOOL,
   SEARCH_ATTRACTIONS_TOOL,
@@ -283,8 +310,26 @@ async function executeSearchAttractions(args: any, apiKey: string): Promise<stri
   return data.choices?.[0]?.message?.content || JSON.stringify({ attractions: [] });
 }
 
+async function executeSearchTrains(args: any, apiKey: string): Promise<string> {
+  const resp = await fetch(AI_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      messages: [
+        { role: "system", content: "Generate realistic train options between cities. Include train numbers, names, departure/arrival times, duration, intermediate stops, classes, and prices. For multi-city trips, analyze the route and determine the optimal visiting order based on train routes and intermediate stations. Return as JSON." },
+        { role: "user", content: `Trains from ${args.origin} to ${args.destination || (args.destinations || []).join(", ")}. ${args.date ? `Date: ${args.date}.` : ""} ${args.destinations ? `Multi-city destinations: ${args.destinations.join(", ")}. Determine optimal visiting order based on train route connections.` : ""}` },
+      ],
+    }),
+  });
+  if (!resp.ok) return JSON.stringify({ error: "Train search unavailable", trains: [] });
+  const data = await resp.json();
+  return data.choices?.[0]?.message?.content || JSON.stringify({ trains: [] });
+}
+
 const TOOL_EXECUTORS: Record<string, (args: any, apiKey: string) => Promise<string>> = {
   search_flights: executeSearchFlights,
+  search_trains: executeSearchTrains,
   search_hotels: executeSearchHotels,
   search_restaurants: executeSearchRestaurants,
   search_attractions: executeSearchAttractions,
