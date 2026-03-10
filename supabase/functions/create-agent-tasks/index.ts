@@ -69,7 +69,7 @@ serve(async (req) => {
       });
     }
 
-    const { trip_id, agent_run_id } = await req.json();
+    const { trip_id, agent_run_id, prefer_train } = await req.json();
     if (!trip_id) {
       return new Response(JSON.stringify({ error: "trip_id is required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
