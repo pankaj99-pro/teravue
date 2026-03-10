@@ -143,7 +143,13 @@ export default function Index() {
         lat: s.lat!,
         lng: s.lng!,
         img: imageMap[s.image] || colosseumImg,
-        activityType: s.image, // pass activity type for flight detection
+        activityType: s.image,
+        trainNumber: s.trainNumber,
+        trainName: s.trainName,
+        departureTime: s.departureTime,
+        arrivalTime: s.arrivalTime,
+        platform: s.platform,
+        intermediateStops: s.intermediateStops,
       }));
   }, [currentDayPlan]);
 
