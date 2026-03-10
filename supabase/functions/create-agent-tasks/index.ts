@@ -96,6 +96,7 @@ serve(async (req) => {
       hotel_agent: "hotels_found",
       restaurant_agent: "restaurants_found",
       attraction_agent: "attractions_found",
+      train_agent: "trains_found",
       budget_agent: "budget_analysis",
       transport_agent: "routes_optimized",
     };
