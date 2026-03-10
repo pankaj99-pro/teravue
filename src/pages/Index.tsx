@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { TripHeader } from "@/components/TripHeader";
 import { ItineraryCard, ItineraryItem, TravelSegment } from "@/components/ItineraryCard";
+import { TrainScheduleCard } from "@/components/TrainScheduleCard";
 import { MapPanel, TransportMode, RouteSegment } from "@/components/MapPanel";
 import { useItinerary } from "@/contexts/ItineraryContext";
 import { useAuth } from "@/contexts/AuthContext";
