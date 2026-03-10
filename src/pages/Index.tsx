@@ -23,6 +23,7 @@ const imageMap: Record<string, string> = {
   landmark: colosseumImg,
   activity: colosseumImg,
   transport: airportImg,
+  train: airportImg,
 };
 
 export default function Index() {
