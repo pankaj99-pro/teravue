@@ -17,44 +17,62 @@ export type Database = {
       activities: {
         Row: {
           activity_type: string | null
+          arrival_time: string | null
           booking_url: string | null
+          departure_time: string | null
           end_time: string | null
           id: string
           image_url: string | null
+          intermediate_stops: Json | null
           latitude: number | null
           location_name: string | null
           longitude: number | null
+          platform: string | null
           price_estimate: number | null
           start_time: string | null
           title: string
+          train_name: string | null
+          train_number: string | null
           trip_day_id: string
         }
         Insert: {
           activity_type?: string | null
+          arrival_time?: string | null
           booking_url?: string | null
+          departure_time?: string | null
           end_time?: string | null
           id?: string
           image_url?: string | null
+          intermediate_stops?: Json | null
           latitude?: number | null
           location_name?: string | null
           longitude?: number | null
+          platform?: string | null
           price_estimate?: number | null
           start_time?: string | null
           title: string
+          train_name?: string | null
+          train_number?: string | null
           trip_day_id: string
         }
         Update: {
           activity_type?: string | null
+          arrival_time?: string | null
           booking_url?: string | null
+          departure_time?: string | null
           end_time?: string | null
           id?: string
           image_url?: string | null
+          intermediate_stops?: Json | null
           latitude?: number | null
           location_name?: string | null
           longitude?: number | null
+          platform?: string | null
           price_estimate?: number | null
           start_time?: string | null
           title?: string
+          train_name?: string | null
+          train_number?: string | null
           trip_day_id?: string
         }
         Relationships: [
