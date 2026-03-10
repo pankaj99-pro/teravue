@@ -196,7 +196,7 @@ const CREATE_ITINERARY_TOOL = {
   type: "function",
   function: {
     name: "create_itinerary",
-    description: "Create the final structured travel itinerary. Call this LAST after all research is done. CRITICAL: Order stops using nearest-neighbor (closest unvisited next). Day N+1 MUST start from Day N's last stop location. For train trips, include trainNumber, trainName, departureTime, arrivalTime, and intermediateStops.",
+    description: "Create the final structured travel itinerary. Call this LAST after all research is done. ABSOLUTE RULE: For multi-city trips, complete ALL activities in one city before moving to the next — NEVER revisit a city. Order stops within each city using nearest-neighbor. Day N+1 starts from Day N's last location. For train trips, include trainNumber, trainName, departureTime, arrivalTime, and intermediateStops.",
     parameters: {
       type: "object",
       properties: {
