@@ -1,4 +1,4 @@
-import { X, Train, Car, Bike, Footprints, Clock, MapPin, ArrowRight } from "lucide-react";
+import { X, Train, Car, Bike, Footprints, Clock, MapPin, ArrowRight, Navigation, Milestone, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import type { TransportMode } from "@/components/MapPanel";
 
@@ -45,6 +45,233 @@ function formatDuration(min: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
+function TrainDetailsPanel({ trainInfo, onClose }: { trainInfo: TrainSegmentInfo; onClose: () => void }) {
+  let duration = "";
+  if (trainInfo.departureTime && trainInfo.arrivalTime) {
+    const [dH, dM] = trainInfo.departureTime.split(":").map(Number);
+    const [aH, aM] = trainInfo.arrivalTime.split(":").map(Number);
+    let mins = (aH * 60 + aM) - (dH * 60 + dM);
+    if (mins < 0) mins += 24 * 60;
+    duration = formatDuration(mins);
+  }
+
+  return (
+    <motion.div
+      className="absolute bottom-20 left-4 z-[1000] w-[340px] overflow-hidden rounded-2xl border border-[hsl(330,60%,30%)] shadow-[0_8px_40px_hsl(330,80%,40%,0.2)]"
+      initial={{ opacity: 0, y: 30, scale: 0.92 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 30, scale: 0.92 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+    >
+      {/* Gradient header */}
+      <div className="relative bg-gradient-to-br from-[hsl(330,50%,18%)] to-[hsl(330,40%,10%)] px-5 py-4">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,hsl(330,80%,60%,0.12),transparent_60%)]" />
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[hsl(330,80%,60%,0.2)] ring-1 ring-[hsl(330,80%,60%,0.3)]">
+              <Train className="h-5 w-5 text-[hsl(330,80%,65%)]" />
+            </div>
+            <div>
+              <p className="font-display text-sm font-bold text-foreground leading-tight">
+                {trainInfo.trainNumber || "Train"}
+              </p>
+              {trainInfo.trainName && (
+                <p className="text-xs font-medium text-[hsl(330,80%,65%)]">{trainInfo.trainName}</p>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[hsl(330,30%,20%)] hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        {duration && (
+          <div className="relative mt-3 flex items-center gap-2 rounded-lg bg-[hsl(330,60%,60%,0.12)] px-3 py-1.5">
+            <Clock className="h-3.5 w-3.5 text-[hsl(330,80%,65%)]" />
+            <span className="text-xs font-bold text-foreground">{duration}</span>
+            <span className="text-xs text-muted-foreground">journey time</span>
+          </div>
+        )}
+      </div>
+
+      {/* Body */}
+      <div className="bg-card px-5 py-4 space-y-0">
+        {/* Departure */}
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center pt-1">
+            <div className="h-3.5 w-3.5 rounded-full bg-[hsl(330,80%,60%)] ring-4 ring-[hsl(330,80%,60%,0.15)]" />
+            <div className="w-0.5 flex-1 bg-gradient-to-b from-[hsl(330,80%,60%)] to-[hsl(330,60%,40%,0.3)]" />
+          </div>
+          <div className="pb-4 flex-1">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Departure</p>
+            <p className="text-sm font-bold text-foreground mt-0.5">{trainInfo.departureStation}</p>
+            <div className="mt-1 flex items-center gap-2">
+              {trainInfo.departureTime && (
+                <span className="rounded-md bg-[hsl(330,80%,60%,0.12)] px-2 py-0.5 text-xs font-bold text-[hsl(330,80%,65%)]">
+                  {trainInfo.departureTime}
+                </span>
+              )}
+              {trainInfo.platform && (
+                <span className="rounded-md bg-accent px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                  Platform {trainInfo.platform}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Intermediate stops */}
+        {trainInfo.intermediateStops && trainInfo.intermediateStops.length > 0 && (
+          <div className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <div className="w-0.5 flex-1 border-l-2 border-dashed border-[hsl(330,60%,40%,0.3)]" />
+            </div>
+            <div className="pb-3 flex-1">
+              <div className="rounded-lg bg-accent/50 px-3 py-2 space-y-1.5">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-1.5">
+                  <Milestone className="h-3 w-3" />
+                  {trainInfo.intermediateStops.length} Intermediate {trainInfo.intermediateStops.length === 1 ? "Stop" : "Stops"}
+                </p>
+                {trainInfo.intermediateStops.map((stop, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-[hsl(330,60%,50%,0.6)]" />
+                    <span className="text-xs text-foreground/70">{stop}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Arrival */}
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center pt-1">
+            <div className="h-3.5 w-3.5 rounded-full border-[3px] border-[hsl(330,80%,60%)] bg-card" />
+          </div>
+          <div className="flex-1">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Arrival</p>
+            <p className="text-sm font-bold text-foreground mt-0.5">{trainInfo.arrivalStation}</p>
+            {trainInfo.arrivalTime && (
+              <span className="mt-1 inline-block rounded-md bg-[hsl(330,80%,60%,0.12)] px-2 py-0.5 text-xs font-bold text-[hsl(330,80%,65%)]">
+                {trainInfo.arrivalTime}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function RoadDetailsPanel({
+  roadInfo,
+  selectedMode,
+  onModeChange,
+  onClose,
+}: {
+  roadInfo: RoadSegmentInfo;
+  selectedMode: TransportMode;
+  onModeChange: (mode: TransportMode) => void;
+  onClose: () => void;
+}) {
+  const currentModeData = roadInfo.modes.find((m) => m.transport_mode === selectedMode);
+  const currentConfig = ROAD_MODES.find((m) => m.mode === selectedMode);
+
+  return (
+    <motion.div
+      className="absolute bottom-20 left-4 z-[1000] w-[340px] overflow-hidden rounded-2xl border border-border shadow-[0_8px_40px_hsl(210,100%,50%,0.12)]"
+      initial={{ opacity: 0, y: 30, scale: 0.92 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 30, scale: 0.92 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+    >
+      {/* Header */}
+      <div className="relative bg-gradient-to-br from-card to-[hsl(225,25%,8%)] px-5 py-4">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,hsl(210,100%,60%,0.08),transparent_60%)]" />
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 ring-1 ring-primary/25">
+              <Navigation className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-display text-sm font-bold text-foreground">Road Route</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Select transport mode</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Route */}
+      <div className="bg-card px-5 py-4 space-y-4">
+        <div className="flex items-center gap-2.5 rounded-lg bg-accent/60 px-3.5 py-2.5">
+          <MapPin className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+          <span className="text-sm font-semibold text-foreground truncate flex-1">{roadInfo.from}</span>
+          <ArrowRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+          <span className="text-sm font-semibold text-foreground truncate flex-1 text-right">{roadInfo.to}</span>
+        </div>
+
+        {/* Stats */}
+        {currentModeData && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-accent/40 p-3 text-center">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Duration</p>
+              <p className="mt-1 text-lg font-bold text-foreground font-display">{formatDuration(currentModeData.duration_minutes)}</p>
+            </div>
+            <div className="rounded-xl bg-accent/40 p-3 text-center">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Distance</p>
+              <p className="mt-1 text-lg font-bold text-foreground font-display">{currentModeData.distance_km.toFixed(1)} km</p>
+            </div>
+          </div>
+        )}
+
+        {/* Mode switcher */}
+        <div className="grid grid-cols-3 gap-2 pt-1">
+          {ROAD_MODES.map(({ mode, icon: Icon, label, color }) => {
+            const modeData = roadInfo.modes.find((m) => m.transport_mode === mode);
+            const isSelected = mode === selectedMode;
+            return (
+              <button
+                key={mode}
+                onClick={() => onModeChange(mode)}
+                className={`relative flex flex-col items-center gap-1.5 rounded-xl py-3 transition-all duration-200 ${
+                  isSelected
+                    ? "bg-primary/10 ring-1 ring-primary/30 shadow-[0_0_20px_hsl(210,100%,60%,0.08)]"
+                    : "bg-accent/30 hover:bg-accent/60 ring-1 ring-transparent"
+                }`}
+              >
+                <Icon className="h-5 w-5 transition-colors" style={{ color: isSelected ? color : "hsl(215,20%,50%)" }} />
+                <span className="text-[11px] font-bold capitalize" style={{ color: isSelected ? color : undefined }}>
+                  {label}
+                </span>
+                {modeData && (
+                  <span className={`text-[10px] font-medium ${isSelected ? "text-foreground" : "text-muted-foreground"}`}>
+                    {formatDuration(modeData.duration_minutes)}
+                  </span>
+                )}
+                {isSelected && (
+                  <motion.div
+                    layoutId="mode-indicator"
+                    className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full"
+                    style={{ background: color }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export function SegmentDetailsPanel({
   type,
   trainInfo,
@@ -54,174 +281,17 @@ export function SegmentDetailsPanel({
   onClose,
 }: SegmentDetailsPanelProps) {
   if (type === "train" && trainInfo) {
-    // Calculate duration from departure/arrival times
-    let duration = "";
-    if (trainInfo.departureTime && trainInfo.arrivalTime) {
-      const [dH, dM] = trainInfo.departureTime.split(":").map(Number);
-      const [aH, aM] = trainInfo.arrivalTime.split(":").map(Number);
-      let mins = (aH * 60 + aM) - (dH * 60 + dM);
-      if (mins < 0) mins += 24 * 60;
-      duration = formatDuration(mins);
-    }
-
-    return (
-      <motion.div
-        className="absolute bottom-20 left-4 z-[1000] bg-[hsl(225,25%,11%)] border border-pink-500/30 shadow-2xl rounded-xl p-4 w-80 space-y-3"
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 20, scale: 0.95 }}
-        transition={{ duration: 0.2 }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-pink-500/20">
-              <Train className="w-4 h-4 text-pink-400" />
-            </div>
-            <div>
-              <span className="text-sm font-semibold text-foreground font-display block">
-                {trainInfo.trainNumber || "Train"}
-              </span>
-              {trainInfo.trainName && (
-                <span className="text-[11px] text-pink-400 font-medium">{trainInfo.trainName}</span>
-              )}
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Stations */}
-        <div className="bg-muted/30 rounded-lg p-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-pink-400 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-xs text-muted-foreground">Departure</p>
-              <p className="text-sm font-semibold text-foreground">{trainInfo.departureStation}</p>
-              {trainInfo.departureTime && (
-                <p className="text-xs text-pink-400 font-medium">{trainInfo.departureTime}</p>
-              )}
-            </div>
-            {trainInfo.platform && (
-              <div className="bg-pink-500/15 px-2 py-1 rounded text-[10px] font-semibold text-pink-400">
-                PF {trainInfo.platform}
-              </div>
-            )}
-          </div>
-
-          {trainInfo.intermediateStops && trainInfo.intermediateStops.length > 0 && (
-            <div className="pl-4 border-l-2 border-pink-500/20 ml-1 space-y-1">
-              {trainInfo.intermediateStops.map((stop, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-pink-400/50 flex-shrink-0" />
-                  <span className="text-[11px] text-foreground/60">{stop}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full border-2 border-pink-400 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-xs text-muted-foreground">Arrival</p>
-              <p className="text-sm font-semibold text-foreground">{trainInfo.arrivalStation}</p>
-              {trainInfo.arrivalTime && (
-                <p className="text-xs text-pink-400 font-medium">{trainInfo.arrivalTime}</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Duration */}
-        {duration && (
-          <div className="flex items-center gap-2 text-sm">
-            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-foreground font-semibold">{duration}</span>
-            <span className="text-muted-foreground">travel time</span>
-          </div>
-        )}
-      </motion.div>
-    );
+    return <TrainDetailsPanel trainInfo={trainInfo} onClose={onClose} />;
   }
 
-  // Road segment details
   if (type === "road" && roadInfo) {
-    const currentModeData = roadInfo.modes.find((m) => m.transport_mode === selectedMode);
-
     return (
-      <motion.div
-        className="absolute bottom-20 left-4 z-[1000] bg-[hsl(225,25%,11%)] border border-glass-border shadow-2xl rounded-xl p-4 w-80 space-y-3"
-        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 20, scale: 0.95 }}
-        transition={{ duration: 0.2 }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground font-display">Road Route</span>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Route */}
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-foreground font-medium truncate">{roadInfo.from}</span>
-          <ArrowRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-          <span className="text-foreground font-medium truncate">{roadInfo.to}</span>
-        </div>
-
-        {/* Current mode details */}
-        {currentModeData && (
-          <div className="bg-muted/30 rounded-lg p-3 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Estimated Time</span>
-              <span className="text-sm font-bold text-foreground">{formatDuration(currentModeData.duration_minutes)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Distance</span>
-              <span className="text-sm font-semibold text-foreground">{currentModeData.distance_km.toFixed(1)} km</span>
-            </div>
-          </div>
-        )}
-
-        {/* Mode switcher */}
-        <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-border/40">
-          {ROAD_MODES.map(({ mode, icon: Icon, label, color }) => {
-            const modeData = roadInfo.modes.find((m) => m.transport_mode === mode);
-            const isSelected = mode === selectedMode;
-            return (
-              <button
-                key={mode}
-                onClick={() => onModeChange(mode)}
-                className={`flex flex-col items-center gap-1 py-2 rounded-lg transition-all ${
-                  isSelected ? "bg-primary/15 border border-primary/30" : "hover:bg-muted/40 border border-transparent"
-                }`}
-              >
-                <Icon className="w-4 h-4" style={{ color: isSelected ? color : "hsl(215,20%,55%)" }} />
-                <span className="text-[10px] font-semibold capitalize" style={{ color: isSelected ? color : undefined }}>
-                  {label}
-                </span>
-                {modeData && (
-                  <span className={`text-[10px] ${isSelected ? "text-foreground" : "text-muted-foreground"}`}>
-                    {formatDuration(modeData.duration_minutes)}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </motion.div>
+      <RoadDetailsPanel
+        roadInfo={roadInfo}
+        selectedMode={selectedMode}
+        onModeChange={onModeChange}
+        onClose={onClose}
+      />
     );
   }
 
