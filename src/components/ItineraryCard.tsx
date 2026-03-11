@@ -28,6 +28,7 @@ interface ItineraryCardProps {
   item: ItineraryItem;
   isActive: boolean;
   onClick: () => void;
+  onViewDetails?: () => void;
   index: number;
   isLast?: boolean;
   travelSegment?: TravelSegment;
@@ -55,10 +56,14 @@ function formatDuration(min: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-export function ItineraryCard({ item, isActive, onClick, index, isLast, travelSegment, selectedMode }: ItineraryCardProps) {
+export function ItineraryCard({ item, isActive, onClick, onViewDetails, index, isLast, travelSegment, selectedMode }: ItineraryCardProps) {
   const handleButtonClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    toast.success(`${item.buttonLabel} for "${item.title}" — opening soon!`);
+    if (onViewDetails) {
+      onViewDetails();
+    } else {
+      toast.success(`${item.buttonLabel} for "${item.title}" — opening soon!`);
+    }
   };
 
   const modeData = travelSegment?.modes.find((m) => m.transport_mode === selectedMode);
@@ -67,7 +72,7 @@ export function ItineraryCard({ item, isActive, onClick, index, isLast, travelSe
   return (
     <div>
       <motion.div
-        className="flex items-stretch gap-3"
+        className="flex items-stretch gap-2 sm:gap-3"
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4, delay: index * 0.1, ease: "easeOut" }}
@@ -96,7 +101,7 @@ export function ItineraryCard({ item, isActive, onClick, index, isLast, travelSe
         {/* Card */}
         <motion.div
           onClick={onClick}
-          className={`flex-1 glass-panel rounded-xl p-3.5 cursor-pointer card-hover min-w-0 ${
+          className={`flex-1 glass-panel rounded-xl p-3 sm:p-3.5 cursor-pointer card-hover min-w-0 ${
             isActive ? "border-primary/40 bg-primary/5" : ""
           }`}
           whileHover={{ scale: 1.02, y: -1 }}
@@ -110,7 +115,7 @@ export function ItineraryCard({ item, isActive, onClick, index, isLast, travelSe
             <motion.img
               src={item.image}
               alt={item.title}
-              className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+              className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg object-cover flex-shrink-0"
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.2 }}
             />
@@ -121,13 +126,13 @@ export function ItineraryCard({ item, isActive, onClick, index, isLast, travelSe
                 <MapPin className="w-3 h-3 flex-shrink-0" />
                 <span className="truncate">{item.location}</span>
               </div>
-              <div className="flex items-center justify-between mt-1.5">
-                <div className="flex items-center gap-1 text-[10px] md:text-xs">
+              <div className="flex items-center justify-between mt-1.5 gap-2">
+                <div className="flex items-center gap-1 text-[10px] md:text-xs min-w-0">
                   {item.price ? (
                     <>
                       <DollarSign className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                       <span className="text-secondary font-medium">{item.price}</span>
-                      {item.priceLabel && <span className="text-muted-foreground">{item.priceLabel}</span>}
+                      {item.priceLabel && <span className="text-muted-foreground hidden sm:inline">{item.priceLabel}</span>}
                     </>
                   ) : (
                     item.priceLabel && <span className="text-muted-foreground">{item.priceLabel}</span>
@@ -135,7 +140,7 @@ export function ItineraryCard({ item, isActive, onClick, index, isLast, travelSe
                 </div>
                 <motion.button
                   onClick={handleButtonClick}
-                  className="flex-shrink-0 px-3 py-1.5 rounded-lg border border-primary/40 text-primary text-[10px] md:text-xs font-medium hover:bg-primary/10 transition-colors whitespace-nowrap"
+                  className="flex-shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg border border-primary/40 text-primary text-[10px] md:text-xs font-medium hover:bg-primary/10 transition-colors whitespace-nowrap"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -150,7 +155,7 @@ export function ItineraryCard({ item, isActive, onClick, index, isLast, travelSe
       {/* Travel segment between stops */}
       {travelSegment && modeData && (
         <motion.div
-          className="flex items-stretch gap-3 py-1.5"
+          className="flex items-stretch gap-2 sm:gap-3 py-1.5"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: index * 0.1 + 0.2 }}
@@ -158,7 +163,7 @@ export function ItineraryCard({ item, isActive, onClick, index, isLast, travelSe
           <div className="flex flex-col items-center flex-shrink-0">
             <div className="w-0.5 flex-1 bg-border opacity-40" style={{ minHeight: 8 }} />
           </div>
-          <div className="flex-1 flex items-center gap-3 px-4 py-2.5 rounded-xl bg-muted/40 border border-border/50">
+          <div className="flex-1 flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-muted/40 border border-border/50">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary/10 flex-shrink-0">
               <TravelIcon className={`w-4 h-4 ${modeColors[selectedMode]}`} />
             </div>
