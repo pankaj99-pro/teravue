@@ -126,30 +126,51 @@ Available data:
 - Train routes: ${JSON.stringify(memoryMap["trains_found"] || "Not available")}
 - Route data: ${JSON.stringify(memoryMap["routes_optimized"] || "Not available")}
 
-Create a day-by-day itinerary that:
-1. **ABSOLUTE RULE — COMPLETE EACH CITY BEFORE MOVING ON**: Once you arrive in a city, explore ALL attractions, restaurants, and activities in that city across one or more days before traveling to the next city. NEVER leave a city and return to it later. No backtracking between cities.
-   - WRONG: Agra → Vrindavan → Agra again → Vrindavan again (backtracking)
-   - CORRECT: Agra (all days needed) → Vrindavan (all days needed) → Return home
-2. **CITY VISIT ORDER**: Determine the optimal geographic sequence of cities first. If train route data shows intermediate stops, visit cities in that route order.
-3. **TRAIN-BASED MULTI-CITY PLANNING**: If train route data is available with an optimal city visiting order, follow that order strictly. Use the recommended trains with their numbers, departure/arrival times.
-4. For multi-city trips: arrive at the first destination city, explore ALL its attractions over 1+ days, then take a train to the next city and explore ALL its attractions.
-5. Include specific train numbers and names in transport activities (set activity_type to "train").
-6. List intermediate stops for train journeys when available.
-7. Starts with arrival (flight or train) and ends with departure.
-8. Includes hotel check-in/out in each city.
-9. **WITHIN each city**: Optimizes visit order using nearest-neighbor algorithm — visit the closest unvisited attraction next.
-10. **Each day starts from the previous day's last location**.
-11. **Transport mode selection by distance (within a city):**
-   - < 2 km → Walking (free)
-   - 2–6 km → Bike (cheap)
-   - > 6 km → Public transport (metro/train)
-   - Car/taxi only when necessary
-12. Clusters geographically close attractions on the same day.
-13. Balances busy days with rest.
-14. Includes meal recommendations at found restaurants.
-15. Stays within budget.
-16. Include travel time and transport mode between consecutive stops.
-17. For train travel days, show: City A → Train [number] → City B (via intermediate stops if relevant).`;
+Think of this trip as a DIRECTED GRAPH and optimize it:
+
+## GRAPH-BASED OPTIMIZATION RULES:
+
+### Step 1: CONSTRUCT THE CITY GRAPH
+- NODES = Origin + all destination cities
+- EDGES = transport connections (train routes, roads)
+- Within each city: attractions form a sub-graph
+
+### Step 2: VISITED-NODE CONSTRAINT (No Backtracking!)
+Maintain visited_cities = []. Once a city is fully explored, mark it visited.
+- if next_city in visited_cities → SKIP (never revisit)
+- Only exception: origin city for return journey
+- WRONG: Agra → Vrindavan → Agra again (backtracking loop)
+- CORRECT: Agra (all days) → Vrindavan (all days) → Return home
+
+### Step 3: OPTIMAL CITY SEQUENCE
+Find the shortest forward path visiting all cities:
+- Follow train line order (if stations A, B are sequential on a line, visit A before B)
+- Minimize total inter-city travel distance
+- No zigzagging between cities
+
+### Step 4: INTRA-CITY TSP (Attraction Ordering)
+Within each city, solve nearest-neighbor ordering:
+- Start from arrival point (station/hotel)
+- Visit closest unvisited attraction next
+- Cluster nearby attractions on the same day
+- End each day near next day's starting point
+
+### Step 5: BUILD THE ITINERARY
+1. Start with arrival transport (flight/train) to first city
+2. Explore ALL first city attractions (1+ days) using nearest-neighbor order
+3. Travel to next city, explore ALL its attractions
+4. Repeat until all cities visited
+5. Return to origin
+
+### Additional Rules:
+- Each day starts from previous day's last location (continuity)
+- Transport within city: <2km walk, 2-6km bike, >6km metro/public transport
+- Include train numbers, names, platforms, departure/arrival times, intermediate stops
+- Balance busy days with rest periods
+- Include meals at recommended restaurants
+- Stay within budget
+- For train days: "City A → Train [number] → City B (via stops)"`;
+
 
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
