@@ -6,6 +6,7 @@ import { TripHeader } from "@/components/TripHeader";
 import { ItineraryCard, ItineraryItem, TravelSegment } from "@/components/ItineraryCard";
 import { TrainScheduleCard } from "@/components/TrainScheduleCard";
 import { MapPanel, TransportMode, RouteSegment } from "@/components/MapPanel";
+import { ActivityDetailPanel, ActivityDetail } from "@/components/ActivityDetailPanel";
 import { useItinerary } from "@/contexts/ItineraryContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { loadFullTrip, loadTripsFromDatabase } from "@/lib/tripStorage";
@@ -33,6 +34,7 @@ export default function Index() {
   const [transportMode, setTransportMode] = useState<TransportMode>("car");
   const [dbRoutes, setDbRoutes] = useState<any[]>([]);
   const [isHydratingLatestTrip, setIsHydratingLatestTrip] = useState(true);
+  const [selectedActivity, setSelectedActivity] = useState<ActivityDetail | null>(null);
 
   const { user } = useAuth();
   const { tripPlan, setTripPlan } = useItinerary();
@@ -40,58 +42,31 @@ export default function Index() {
 
   useEffect(() => {
     let cancelled = false;
-
     const hydrateLatestTrip = async () => {
-      if (tripPlan) {
-        setIsHydratingLatestTrip(false);
-        return;
-      }
-
-      if (!user) {
-        setIsHydratingLatestTrip(false);
-        return;
-      }
-
+      if (tripPlan) { setIsHydratingLatestTrip(false); return; }
+      if (!user) { setIsHydratingLatestTrip(false); return; }
       setIsHydratingLatestTrip(true);
       const trips = await loadTripsFromDatabase(user.id);
       const latestTripId = trips?.[0]?.id;
-
-      if (!latestTripId) {
-        if (!cancelled) setIsHydratingLatestTrip(false);
-        return;
-      }
-
+      if (!latestTripId) { if (!cancelled) setIsHydratingLatestTrip(false); return; }
       const latestPlan = await loadFullTrip(latestTripId);
       if (!cancelled && latestPlan) {
         setTripPlan(latestPlan);
         setSelectedDay(latestPlan.days[0]?.day ?? 1);
         setActiveStop(latestPlan.days[0]?.stops[0]?.id ?? 1);
       }
-
       if (!cancelled) setIsHydratingLatestTrip(false);
     };
-
     hydrateLatestTrip();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [tripPlan, user, setTripPlan]);
 
   useEffect(() => {
-    if (!tripPlan?.tripId) {
-      setDbRoutes([]);
-      return;
-    }
-
+    if (!tripPlan?.tripId) { setDbRoutes([]); return; }
     const fetchRoutes = async () => {
-      const { data } = await supabase
-        .from("trip_routes")
-        .select("*")
-        .eq("trip_id", tripPlan.tripId);
+      const { data } = await supabase.from("trip_routes").select("*").eq("trip_id", tripPlan.tripId);
       setDbRoutes(data ?? []);
     };
-
     fetchRoutes();
   }, [tripPlan?.tripId]);
 
@@ -155,57 +130,31 @@ export default function Index() {
 
   const routeSegments: RouteSegment[] = useMemo(() => {
     if (!tripPlan || !currentDayPlan) return [];
-
     if (dbRoutes.length > 0) {
       const segMap = new Map<string, RouteSegment>();
       for (const r of dbRoutes) {
         const key = `${r.from_location}→${r.to_location}`;
-        if (!segMap.has(key)) {
-          segMap.set(key, { from: r.from_location, to: r.to_location, modes: [] });
-        }
-
+        if (!segMap.has(key)) segMap.set(key, { from: r.from_location, to: r.to_location, modes: [] });
         let polyline: [number, number][] | undefined;
-        if (r.route_polyline) {
-          try {
-            polyline = JSON.parse(r.route_polyline);
-          } catch {
-            polyline = undefined;
-          }
-        }
-
-        segMap.get(key)!.modes.push({
-          transport_mode: r.transport_mode,
-          distance_km: r.distance_km || 0,
-          duration_minutes: r.duration_minutes || 0,
-          polyline,
-        });
+        if (r.route_polyline) { try { polyline = JSON.parse(r.route_polyline); } catch { polyline = undefined; } }
+        segMap.get(key)!.modes.push({ transport_mode: r.transport_mode, distance_km: r.distance_km || 0, duration_minutes: r.duration_minutes || 0, polyline });
       }
       return Array.from(segMap.values());
     }
-
     if (currentDayPlan.stops.length < 2) return [];
-
     const segs: RouteSegment[] = [];
     for (let i = 0; i < currentDayPlan.stops.length - 1; i++) {
       const from = currentDayPlan.stops[i];
       const to = currentDayPlan.stops[i + 1];
-
       if (from.lat == null || from.lng == null || to.lat == null || to.lng == null) continue;
-
       const R = 6371;
       const dLat = ((to.lat - from.lat) * Math.PI) / 180;
       const dLng = ((to.lng - from.lng) * Math.PI) / 180;
-      const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos((from.lat * Math.PI) / 180) *
-          Math.cos((to.lat * Math.PI) / 180) *
-          Math.sin(dLng / 2) ** 2;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos((from.lat * Math.PI) / 180) * Math.cos((to.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
       const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       const km = Math.round(dist * 10) / 10;
-
       segs.push({
-        from: from.title,
-        to: to.title,
+        from: from.title, to: to.title,
         modes: [
           { transport_mode: "car", distance_km: km * 1.3, duration_minutes: Math.max(3, Math.round((km * 1.3) / 0.6)) },
           { transport_mode: "bike", distance_km: km * 1.2, duration_minutes: Math.max(4, Math.round((km * 1.2) / 0.25)) },
@@ -214,25 +163,18 @@ export default function Index() {
         ],
       });
     }
-
     return segs;
   }, [tripPlan, currentDayPlan, dbRoutes]);
 
   const travelSegments: TravelSegment[] = useMemo(() => {
     return routeSegments.map((seg) => ({
-      from: seg.from,
-      to: seg.to,
-      modes: seg.modes.map((m) => ({
-        transport_mode: m.transport_mode,
-        distance_km: m.distance_km,
-        duration_minutes: m.duration_minutes,
-      })),
+      from: seg.from, to: seg.to,
+      modes: seg.modes.map((m) => ({ transport_mode: m.transport_mode, distance_km: m.distance_km, duration_minutes: m.duration_minutes })),
     }));
   }, [routeSegments]);
 
   const headerProps = useMemo(() => {
     if (!tripPlan) return null;
-
     return {
       destination: `${tripPlan.destination} Getaway — ${tripPlan.totalDays} Days Trip`,
       description: `AI-planned trip to ${tripPlan.destination}, ${tripPlan.country}`,
@@ -244,10 +186,28 @@ export default function Index() {
     };
   }, [tripPlan]);
 
+  const handleViewDetails = (item: ItineraryItem) => {
+    const stop = currentDayPlan?.stops.find((s) => s.id === item.id);
+    setSelectedActivity({
+      id: item.id,
+      title: item.title,
+      location: item.location,
+      image: item.image,
+      rating: 4.5 + Math.random() * 0.4,
+      price: item.price,
+      priceLabel: item.priceLabel,
+      openStatus: "Open now",
+      city: tripPlan?.destination,
+      country: tripPlan?.country,
+      dayTitle: currentDayPlan ? `Day ${currentDayPlan.day}: ${currentDayPlan.title}` : undefined,
+    });
+  };
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
       <Navbar />
 
+      {/* Mobile view toggle */}
       <div className="md:hidden fixed top-16 left-0 right-0 z-40 glass-navbar flex">
         {(["itinerary", "map"] as const).map((mode) => (
           <button
@@ -263,6 +223,7 @@ export default function Index() {
       </div>
 
       <div className="flex-1 pt-16 flex flex-col md:flex-row overflow-hidden">
+        {/* Left panel - Itinerary */}
         <div
           className={`w-full md:w-[42%] lg:w-[38%] border-r border-border overflow-y-auto scrollbar-hide ${
             viewMode === "map" ? "hidden md:block" : ""
@@ -275,19 +236,19 @@ export default function Index() {
               <p className="text-sm text-muted-foreground">Syncing trip details from your backend.</p>
             </div>
           ) : !hasTrip || !headerProps ? (
-            <div className="px-6 py-16 text-center space-y-4">
+            <div className="px-4 sm:px-6 py-16 text-center space-y-4">
               <h1 className="text-xl font-semibold text-foreground">No itinerary loaded</h1>
               <p className="text-sm text-muted-foreground">Create a trip in AI Chat or open one from My Trips to populate every section dynamically.</p>
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
                   onClick={() => navigate("/chat")}
-                  className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+                  className="w-full sm:w-auto px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
                 >
                   Open AI Chat
                 </button>
                 <button
                   onClick={() => navigate("/trips")}
-                  className="px-4 py-2 rounded-lg border border-border text-foreground text-sm font-medium hover:bg-accent transition-colors"
+                  className="w-full sm:w-auto px-4 py-2 rounded-lg border border-border text-foreground text-sm font-medium hover:bg-accent transition-colors"
                 >
                   Open My Trips
                 </button>
@@ -310,7 +271,7 @@ export default function Index() {
               <AnimatePresence mode="wait">
                 <motion.div
                   key={selectedDay}
-                  className="px-4 md:px-6 pb-8 space-y-1"
+                  className="px-3 sm:px-4 md:px-6 pb-8 space-y-1"
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -16 }}
@@ -322,12 +283,10 @@ export default function Index() {
                     </div>
                   ) : (
                     currentItems.map((item, i) => {
-                      // Check if this is a train activity
                       const stop = currentDayPlan?.stops[i];
                       const isTrain = stop?.image === "train" || !!stop?.trainNumber;
 
                       if (isTrain && stop) {
-                        // Extract from/to from title like "Jabalpur → Agra" or use location
                         const parts = stop.title.split("→").map(s => s.trim());
                         const from = parts[0] || stop.location;
                         const to = parts[1] || stop.location;
@@ -347,9 +306,7 @@ export default function Index() {
                                       ? "bg-primary text-primary-foreground"
                                       : "bg-muted text-muted-foreground border border-border"
                                   }`}
-                                  animate={{
-                                    scale: activeStop === item.id ? 1.2 : 1,
-                                  }}
+                                  animate={{ scale: activeStop === item.id ? 1.2 : 1 }}
                                 >
                                   {item.id}
                                 </motion.div>
@@ -391,6 +348,7 @@ export default function Index() {
                           item={item}
                           isActive={activeStop === item.id}
                           onClick={() => setActiveStop(item.id)}
+                          onViewDetails={() => handleViewDetails(item)}
                           index={i}
                           isLast={i === currentItems.length - 1}
                           selectedMode={transportMode}
@@ -405,6 +363,7 @@ export default function Index() {
           )}
         </div>
 
+        {/* Right panel - Map */}
         <div
           className={`flex-1 ${viewMode === "itinerary" ? "hidden md:block" : ""}`}
           style={{ marginTop: viewMode === "map" ? "2.75rem" : 0 }}
@@ -419,7 +378,16 @@ export default function Index() {
           />
         </div>
       </div>
+
+      {/* Activity Detail overlay */}
+      <AnimatePresence>
+        {selectedActivity && (
+          <ActivityDetailPanel
+            activity={selectedActivity}
+            onClose={() => setSelectedActivity(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-
