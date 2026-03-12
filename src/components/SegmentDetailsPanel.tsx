@@ -259,7 +259,7 @@ function RoadDetailsPanel({
                     ? "ring-1 shadow-md"
                     : "bg-accent/30 hover:bg-accent/60 ring-1 ring-transparent"
                 }`}
-                style={isSelected ? { background: color + "18", ringColor: color + "40", boxShadow: `0 0 20px ${color}15` } : undefined}
+                style={isSelected ? { background: color + "18", boxShadow: `0 0 0 1px ${color}40, 0 0 20px ${color}15` } : undefined}
               >
                 <Icon className="h-5 w-5 transition-colors" style={{ color: isSelected ? color : "hsl(215,20%,50%)" }} />
                 <span className="text-[11px] font-bold capitalize" style={{ color: isSelected ? color : undefined }}>
