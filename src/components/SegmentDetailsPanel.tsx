@@ -107,7 +107,7 @@ function TrainDetailsPanel({ trainInfo, onClose, isFixed }: { trainInfo: TrainSe
       <div className="bg-card px-4 sm:px-5 py-4 space-y-0">
         <div className="flex gap-3">
           <div className="flex flex-col items-center pt-1 flex-shrink-0">
-            <div className="h-3.5 w-3.5 rounded-full ring-4" style={{ background: "#2563EB", ringColor: "#2563EB22" }} />
+            <div className="h-3.5 w-3.5 rounded-full" style={{ background: "#2563EB", boxShadow: "0 0 0 4px #2563EB22" }} />
             <div className="w-0.5 flex-1" style={{ background: "linear-gradient(to bottom, #2563EB, #2563EB30)" }} />
           </div>
           <div className="pb-4 flex-1 min-w-0">
