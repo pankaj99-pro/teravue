@@ -43,10 +43,10 @@ const modeIcons: Record<string, typeof Car> = {
 };
 
 const modeColors: Record<string, string> = {
-  car: "text-primary",
-  bike: "text-green-400",
-  walk: "text-amber-400",
-  train: "text-purple-400",
+  car: "text-[#FACC15]",
+  bike: "text-[#F97316]",
+  walk: "text-[#22C55E]",
+  train: "text-[#2563EB]",
 };
 
 function formatDuration(min: number): string {
