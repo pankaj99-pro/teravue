@@ -192,10 +192,10 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         attributionControl={false}
         style={{ background: "hsl(225, 20%, 12%)" }}
       >
-        {/* Medium-dark map theme - Stadia Alidade Smooth Dark */}
+        {/* Medium-dark map theme */}
         <TileLayer
-          url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://stadiamaps.com/">Stadia</a>'
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
         />
 
         {/* Render polylines with transport-specific styling */}
