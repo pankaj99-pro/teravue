@@ -2,10 +2,10 @@ import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Car, Bike, Train, Footprints, X } from "lucide-react";
-import { AnimatePresence } from "framer-motion";
+import { Car, Bike, Footprints, X, Loader2 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useOSRMRoutes } from "@/hooks/useOSRMRoutes";
-import { AnimatedPolyline } from "@/components/AnimatedPolyline";
+import { AnimatedPolyline, SegmentTransport } from "@/components/AnimatedPolyline";
 import { SegmentDetailsPanel, TrainSegmentInfo, RoadSegmentInfo } from "@/components/SegmentDetailsPanel";
 
 export interface MapStop {
@@ -34,7 +34,16 @@ export interface RouteSegment {
   }[];
 }
 
-export type TransportMode = "car" | "bike" | "walk" | "train";
+export type TransportMode = "car" | "bike" | "walk";
+
+// Color scheme per spec
+const TRANSPORT_COLORS: Record<string, string> = {
+  train: "#2563EB",    // Railway Blue
+  flight: "#0EA5E9",   // Sky Blue
+  car: "#FACC15",      // Taxi Yellow
+  bike: "#F97316",     // Orange
+  walk: "#22C55E",     // Green
+};
 
 interface MapPanelProps {
   activeStop: number;
@@ -45,31 +54,29 @@ interface MapPanelProps {
   onModeChange: (mode: TransportMode) => void;
 }
 
-const modeConfig: Record<TransportMode, { icon: typeof Car; label: string; color: string; description: string }> = {
-  car: { icon: Car, label: "Car", color: "hsl(210,100%,60%)", description: "Fastest by road." },
-  bike: { icon: Bike, label: "Bike", color: "hsl(142,70%,50%)", description: "Eco-friendly cycling." },
-  walk: { icon: Footprints, label: "Walk", color: "hsl(32,95%,60%)", description: "Scenic walk for short distances." },
-  train: { icon: Train, label: "Train", color: "hsl(330,80%,60%)", description: "Rail travel between cities." },
+const modeConfig: Record<TransportMode, { icon: typeof Car; label: string; color: string }> = {
+  car: { icon: Car, label: "Car", color: TRANSPORT_COLORS.car },
+  bike: { icon: Bike, label: "Bike", color: TRANSPORT_COLORS.bike },
+  walk: { icon: Footprints, label: "Walk", color: TRANSPORT_COLORS.walk },
 };
 
-const ALL_MODES: TransportMode[] = ["walk", "bike", "car", "train"];
-const TRAIN_COLOR = "hsl(330,80%,60%)"; // Pink
+const ALL_MODES: TransportMode[] = ["walk", "bike", "car"];
 
 function createNumberedIcon(id: number, isActive: boolean) {
   return L.divIcon({
     className: "custom-marker",
     html: `<div style="
-      width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
       font-size:13px;font-weight:700;font-family:'Space Grotesk',Inter,sans-serif;
-      background:${isActive ? "hsl(210,100%,60%)" : "hsl(225,25%,16%)"};
-      color:${isActive ? "hsl(225,30%,4%)" : "hsl(210,40%,90%)"};
-      border:2.5px solid ${isActive ? "hsl(210,100%,72%)" : "hsl(225,15%,30%)"};
-      box-shadow:${isActive ? "0 0 18px hsl(210,100%,60%,0.5)" : "0 2px 8px rgba(0,0,0,0.3)"};
+      background:${isActive ? "#2563EB" : "hsl(225,25%,16%)"};
+      color:${isActive ? "#fff" : "hsl(210,40%,90%)"};
+      border:2.5px solid ${isActive ? "#60a5fa" : "hsl(225,15%,30%)"};
+      box-shadow:${isActive ? "0 0 20px rgba(37,99,235,0.5)" : "0 2px 8px rgba(0,0,0,0.3)"};
       transform:${isActive ? "scale(1.25)" : "scale(1)"};
       transition:all 0.3s;
     ">${id}</div>`,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
   });
 }
 
@@ -84,16 +91,9 @@ function FlyToActive({ activeStop, stops }: { activeStop: number; stops: MapStop
   return null;
 }
 
-function formatDuration(min: number): string {
-  if (min < 60) return `${Math.round(min)} min`;
-  const h = Math.floor(min / 60);
-  const m = Math.round(min % 60);
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
-}
-
 interface SelectedSegment {
   index: number;
-  type: "train" | "road";
+  type: "train" | "flight" | "road";
   trainInfo?: TrainSegmentInfo;
   roadInfo?: RoadSegmentInfo;
 }
@@ -127,25 +127,31 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
     return map;
   }, [stops]);
 
-  const { routes: osrmRoutes } = useOSRMRoutes(stops, activityTypes);
+  const { routes: osrmRoutes, loading: routesLoading } = useOSRMRoutes(stops, activityTypes);
 
-  // Detect which segments are train segments
+  // Detect segment transport types
   const segmentTypes = useMemo(() => {
     return stops.slice(0, -1).map((from, i) => {
       const to = stops[i + 1];
       const isTrain =
         from.activityType === "train" || to.activityType === "train" ||
         !!from.trainNumber || !!to.trainNumber;
-      return { from, to, isTrain };
+      const isFlight =
+        from.activityType === "flight" || to.activityType === "flight" ||
+        from.label.toLowerCase().includes("airport") ||
+        to.label.toLowerCase().includes("airport") ||
+        from.label.toLowerCase().includes("flight") ||
+        to.label.toLowerCase().includes("flight");
+      const transport: SegmentTransport = isTrain ? "train" : isFlight ? "flight" : selectedMode;
+      return { from, to, isTrain, isFlight, transport };
     });
-  }, [stops]);
+  }, [stops, selectedMode]);
 
   const handleSegmentClick = useCallback((segIndex: number) => {
     const segType = segmentTypes[segIndex];
     if (!segType) return;
 
     if (segType.isTrain) {
-      // Find the train stop (the one with train metadata)
       const trainStop = segType.from.trainNumber ? segType.from : segType.to;
       const trainInfo: TrainSegmentInfo = {
         trainNumber: trainStop.trainNumber,
@@ -158,6 +164,15 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         intermediateStops: trainStop.intermediateStops,
       };
       setSelectedSegment({ index: segIndex, type: "train", trainInfo });
+    } else if (segType.isFlight) {
+      // Flight segments show basic info, no mode switching
+      const trainInfo: TrainSegmentInfo = {
+        trainNumber: "Flight",
+        trainName: `${segType.from.label} → ${segType.to.label}`,
+        departureStation: segType.from.label,
+        arrivalStation: segType.to.label,
+      };
+      setSelectedSegment({ index: segIndex, type: "flight", trainInfo });
     } else {
       const seg = segments[segIndex];
       const roadInfo: RoadSegmentInfo = seg
@@ -167,10 +182,6 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
     }
   }, [segmentTypes, segments]);
 
-  const handleModeChange = (mode: TransportMode) => {
-    onModeChange(mode);
-  };
-
   return (
     <div className="relative w-full h-full overflow-hidden bg-background">
       <MapContainer
@@ -179,38 +190,33 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         className="w-full h-full z-0"
         zoomControl={false}
         attributionControl={false}
-        style={{ background: "hsl(225, 25%, 7%)" }}
+        style={{ background: "hsl(225, 20%, 12%)" }}
       >
+        {/* Medium-dark map theme - Stadia Alidade Smooth Dark */}
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+          url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://stadiamaps.com/">Stadia</a>'
         />
 
-        {/* Render road-following polylines with train detection */}
+        {/* Render polylines with transport-specific styling */}
         {osrmRoutes.map((route, i) => {
-          const isTrain = segmentTypes[i]?.isTrain ?? false;
-          const segColor = isTrain ? TRAIN_COLOR : route.isFlight ? "hsl(0, 0%, 60%)" : config.color;
-          const segWeight = isTrain ? 5 : route.isFlight ? 2 : 4;
+          const segInfo = segmentTypes[i];
+          const transport = segInfo?.transport ?? selectedMode;
+          const segColor = TRANSPORT_COLORS[transport] || config.color;
+          const segWeight = segInfo?.isTrain ? 5 : segInfo?.isFlight ? 4 : 4;
 
           return (
             <AnimatedPolyline
-              key={`route-${route.fromId}-${route.toId}-${animKey}`}
+              key={`route-${route.fromId}-${route.toId}-${animKey}-${transport}`}
               positions={route.coordinates}
               color={segColor}
               weight={segWeight}
-              opacity={0.85}
+              opacity={0.9}
               dashArray={
-                isTrain
-                  ? "12 8"
-                  : route.isFlight
-                  ? "8 12"
-                  : selectedMode === "walk"
-                  ? "6 8"
-                  : selectedMode === "bike"
-                  ? "12 6"
-                  : undefined
+                segInfo?.isTrain ? "14 8" : undefined
               }
-              isFlight={route.isFlight}
+              isFlight={route.isFlight || segInfo?.isFlight}
+              transportType={transport}
               delay={i * 400}
               duration={700}
               onClick={() => handleSegmentClick(i)}
@@ -219,7 +225,7 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         })}
 
         {/* Fallback straight lines */}
-        {osrmRoutes.length === 0 && stops.length > 1 && (
+        {osrmRoutes.length === 0 && stops.length > 1 && !routesLoading && (
           <Polyline
             positions={stops
               .filter((s) => isFinite(s.lat) && isFinite(s.lng))
@@ -252,22 +258,38 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         {dayTitle || "No day selected"}
       </div>
 
-      {/* Segment details panel - shown on path click */}
+      {/* Route loading indicator */}
+      <AnimatePresence>
+        {routesLoading && stops.length > 1 && (
+          <motion.div
+            className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 bg-card/95 backdrop-blur-md border border-border rounded-xl px-4 py-2.5 shadow-lg"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            <span className="text-xs text-muted-foreground font-medium">Loading routes…</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Segment details panel */}
       <AnimatePresence>
         {selectedSegment && (
           <SegmentDetailsPanel
-            type={selectedSegment.type}
+            type={selectedSegment.type === "flight" ? "train" : selectedSegment.type}
             trainInfo={selectedSegment.trainInfo}
             roadInfo={selectedSegment.roadInfo}
             selectedMode={selectedMode}
-            onModeChange={handleModeChange}
+            onModeChange={onModeChange}
             onClose={() => setSelectedSegment(null)}
+            isFixed={selectedSegment.type === "train" || selectedSegment.type === "flight"}
           />
         )}
       </AnimatePresence>
 
-      {/* Empty state messages */}
-      {segments.length === 0 && stops.length > 0 && !selectedSegment && (
+      {/* Empty state */}
+      {segments.length === 0 && stops.length > 0 && !selectedSegment && !routesLoading && (
         <div className="absolute bottom-20 left-4 z-[1000] rounded-xl border border-border bg-card/95 px-4 py-3 text-xs text-muted-foreground shadow-lg">
           Click a path on the map to view travel details.
         </div>
@@ -281,7 +303,7 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         </div>
       )}
 
-      {/* Transport mode buttons on right side */}
+      {/* Transport mode buttons - only road modes (no train) */}
       <div className="absolute right-4 top-1/2 -translate-y-1/2 z-[1000] flex flex-col gap-2">
         {ALL_MODES.map((mode) => {
           const mc = modeConfig[mode];
@@ -291,10 +313,10 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
           return (
             <button
               key={mode}
-              onClick={() => handleModeChange(mode)}
+              onClick={() => onModeChange(mode)}
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-90 ${
                 isSelected
-                  ? "text-white shadow-lg"
+                  ? "text-black shadow-lg"
                   : "bg-card/80 backdrop-blur-sm border border-glass-border text-muted-foreground hover:text-foreground hover:bg-accent shadow-md"
               }`}
               style={isSelected ? { background: mc.color } : undefined}
@@ -307,14 +329,26 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
       </div>
 
       {/* Legend */}
-      <div className="absolute bottom-4 right-4 z-[1000] bg-card/90 backdrop-blur-md border border-glass-border rounded-lg px-3 py-2 flex items-center gap-3 text-[10px] text-muted-foreground">
+      <div className="absolute bottom-4 right-4 z-[1000] bg-card/90 backdrop-blur-md border border-glass-border rounded-lg px-3 py-2 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
         <div className="flex items-center gap-1.5">
-          <div className="w-4 h-0.5 rounded" style={{ background: TRAIN_COLOR }} />
+          <div className="w-4 h-0.5 rounded" style={{ background: TRANSPORT_COLORS.train }} />
           <span>Train</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-4 h-0.5 rounded" style={{ background: config.color }} />
-          <span>Road</span>
+          <div className="w-4 h-0.5 rounded" style={{ background: TRANSPORT_COLORS.flight }} />
+          <span>Flight</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-0.5 rounded" style={{ background: TRANSPORT_COLORS.car }} />
+          <span>Car</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-0.5 rounded" style={{ background: TRANSPORT_COLORS.bike }} />
+          <span>Bike</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-0.5 rounded" style={{ background: TRANSPORT_COLORS.walk }} />
+          <span>Walk</span>
         </div>
       </div>
     </div>

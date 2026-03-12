@@ -1,4 +1,4 @@
-import { X, Train, Car, Bike, Footprints, Clock, MapPin, ArrowRight, Navigation, Milestone } from "lucide-react";
+import { X, Train, Car, Bike, Footprints, Clock, Milestone, Navigation, Lock } from "lucide-react";
 import { motion } from "framer-motion";
 import type { TransportMode } from "@/components/MapPanel";
 
@@ -30,12 +30,13 @@ interface SegmentDetailsPanelProps {
   selectedMode: TransportMode;
   onModeChange: (mode: TransportMode) => void;
   onClose: () => void;
+  isFixed?: boolean; // true for train/flight - no mode switching
 }
 
 const ROAD_MODES: { mode: TransportMode; icon: typeof Car; label: string; color: string }[] = [
-  { mode: "car", icon: Car, label: "Car", color: "hsl(210,100%,60%)" },
-  { mode: "bike", icon: Bike, label: "Bike", color: "hsl(142,70%,50%)" },
-  { mode: "walk", icon: Footprints, label: "Walk", color: "hsl(32,95%,60%)" },
+  { mode: "car", icon: Car, label: "Car", color: "#FACC15" },
+  { mode: "bike", icon: Bike, label: "Bike", color: "#F97316" },
+  { mode: "walk", icon: Footprints, label: "Walk", color: "#22C55E" },
 ];
 
 function formatDuration(min: number): string {
@@ -45,7 +46,7 @@ function formatDuration(min: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-function TrainDetailsPanel({ trainInfo, onClose }: { trainInfo: TrainSegmentInfo; onClose: () => void }) {
+function TrainDetailsPanel({ trainInfo, onClose, isFixed }: { trainInfo: TrainSegmentInfo; onClose: () => void; isFixed?: boolean }) {
   let duration = "";
   if (trainInfo.departureTime && trainInfo.arrivalTime) {
     const [dH, dM] = trainInfo.departureTime.split(":").map(Number);
@@ -57,53 +58,64 @@ function TrainDetailsPanel({ trainInfo, onClose }: { trainInfo: TrainSegmentInfo
 
   return (
     <motion.div
-      className="absolute bottom-20 left-2 sm:left-4 z-[1000] w-[calc(100%-1rem)] sm:w-[340px] max-w-[95vw] overflow-hidden rounded-2xl border border-[hsl(330,60%,30%)] shadow-[0_8px_40px_hsl(330,80%,40%,0.2)]"
+      className="absolute bottom-20 left-2 sm:left-4 z-[1000] w-[calc(100%-1rem)] sm:w-[340px] max-w-[95vw] overflow-hidden rounded-2xl border shadow-xl"
+      style={{ borderColor: "#2563EB40" }}
       initial={{ opacity: 0, y: 30, scale: 0.92 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 30, scale: 0.92 }}
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
     >
-      <div className="relative bg-gradient-to-br from-[hsl(330,50%,18%)] to-[hsl(330,40%,10%)] px-4 sm:px-5 py-4">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,hsl(330,80%,60%,0.12),transparent_60%)]" />
+      {/* Header */}
+      <div className="relative px-4 sm:px-5 py-4" style={{ background: "linear-gradient(135deg, #1e3a5f, #0f172a)" }}>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.15),transparent_60%)]" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[hsl(330,80%,60%,0.2)] ring-1 ring-[hsl(330,80%,60%,0.3)] flex-shrink-0">
-              <Train className="h-5 w-5 text-[hsl(330,80%,65%)]" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0" style={{ background: "#2563EB25", boxShadow: "0 0 0 1px #2563EB40" }}>
+              <Train className="h-5 w-5" style={{ color: "#60a5fa" }} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-display text-sm font-bold text-foreground leading-tight truncate">
                 {trainInfo.trainNumber || "Train"}
               </p>
               {trainInfo.trainName && (
-                <p className="text-xs font-medium text-[hsl(330,80%,65%)] truncate">{trainInfo.trainName}</p>
+                <p className="text-xs font-medium truncate" style={{ color: "#60a5fa" }}>{trainInfo.trainName}</p>
               )}
             </div>
           </div>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-[hsl(330,30%,20%)] hover:text-foreground flex-shrink-0 ml-2">
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+            {isFixed && (
+              <div className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold text-muted-foreground bg-accent/60" title="Fixed segment — cannot switch mode">
+                <Lock className="h-3 w-3" />
+                Fixed
+              </div>
+            )}
+            <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
         {duration && (
-          <div className="relative mt-3 flex items-center gap-2 rounded-lg bg-[hsl(330,60%,60%,0.12)] px-3 py-1.5">
-            <Clock className="h-3.5 w-3.5 text-[hsl(330,80%,65%)]" />
+          <div className="relative mt-3 flex items-center gap-2 rounded-lg px-3 py-1.5" style={{ background: "#2563EB18" }}>
+            <Clock className="h-3.5 w-3.5" style={{ color: "#60a5fa" }} />
             <span className="text-xs font-bold text-foreground">{duration}</span>
             <span className="text-xs text-muted-foreground">journey time</span>
           </div>
         )}
       </div>
 
+      {/* Stations */}
       <div className="bg-card px-4 sm:px-5 py-4 space-y-0">
         <div className="flex gap-3">
           <div className="flex flex-col items-center pt-1 flex-shrink-0">
-            <div className="h-3.5 w-3.5 rounded-full bg-[hsl(330,80%,60%)] ring-4 ring-[hsl(330,80%,60%,0.15)]" />
-            <div className="w-0.5 flex-1 bg-gradient-to-b from-[hsl(330,80%,60%)] to-[hsl(330,60%,40%,0.3)]" />
+            <div className="h-3.5 w-3.5 rounded-full ring-4" style={{ background: "#2563EB", ringColor: "#2563EB22" }} />
+            <div className="w-0.5 flex-1" style={{ background: "linear-gradient(to bottom, #2563EB, #2563EB30)" }} />
           </div>
           <div className="pb-4 flex-1 min-w-0">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Departure</p>
             <p className="text-sm font-bold text-foreground mt-0.5 break-words">{trainInfo.departureStation}</p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               {trainInfo.departureTime && (
-                <span className="rounded-md bg-[hsl(330,80%,60%,0.12)] px-2 py-0.5 text-xs font-bold text-[hsl(330,80%,65%)]">
+                <span className="rounded-md px-2 py-0.5 text-xs font-bold" style={{ background: "#2563EB18", color: "#60a5fa" }}>
                   {trainInfo.departureTime}
                 </span>
               )}
@@ -119,7 +131,7 @@ function TrainDetailsPanel({ trainInfo, onClose }: { trainInfo: TrainSegmentInfo
         {trainInfo.intermediateStops && trainInfo.intermediateStops.length > 0 && (
           <div className="flex gap-3">
             <div className="flex flex-col items-center flex-shrink-0">
-              <div className="w-0.5 flex-1 border-l-2 border-dashed border-[hsl(330,60%,40%,0.3)]" />
+              <div className="w-0.5 flex-1 border-l-2 border-dashed" style={{ borderColor: "#2563EB40" }} />
             </div>
             <div className="pb-3 flex-1 min-w-0">
               <div className="rounded-lg bg-accent/50 px-3 py-2 space-y-1.5">
@@ -129,7 +141,7 @@ function TrainDetailsPanel({ trainInfo, onClose }: { trainInfo: TrainSegmentInfo
                 </p>
                 {trainInfo.intermediateStops.map((stop, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-[hsl(330,60%,50%,0.6)] flex-shrink-0" />
+                    <div className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ background: "#2563EB80" }} />
                     <span className="text-xs text-foreground/70">{stop}</span>
                   </div>
                 ))}
@@ -140,13 +152,13 @@ function TrainDetailsPanel({ trainInfo, onClose }: { trainInfo: TrainSegmentInfo
 
         <div className="flex gap-3">
           <div className="flex flex-col items-center pt-1 flex-shrink-0">
-            <div className="h-3.5 w-3.5 rounded-full border-[3px] border-[hsl(330,80%,60%)] bg-card" />
+            <div className="h-3.5 w-3.5 rounded-full border-[3px] bg-card" style={{ borderColor: "#2563EB" }} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Arrival</p>
             <p className="text-sm font-bold text-foreground mt-0.5 break-words">{trainInfo.arrivalStation}</p>
             {trainInfo.arrivalTime && (
-              <span className="mt-1 inline-block rounded-md bg-[hsl(330,80%,60%,0.12)] px-2 py-0.5 text-xs font-bold text-[hsl(330,80%,65%)]">
+              <span className="mt-1 inline-block rounded-md px-2 py-0.5 text-xs font-bold" style={{ background: "#2563EB18", color: "#60a5fa" }}>
                 {trainInfo.arrivalTime}
               </span>
             )}
@@ -173,18 +185,17 @@ function RoadDetailsPanel({
 
   return (
     <motion.div
-      className="absolute bottom-20 left-2 sm:left-4 z-[1000] w-[calc(100%-1rem)] sm:w-[360px] max-w-[95vw] overflow-hidden rounded-2xl border border-border shadow-[0_8px_40px_hsl(210,100%,50%,0.12)]"
+      className="absolute bottom-20 left-2 sm:left-4 z-[1000] w-[calc(100%-1rem)] sm:w-[360px] max-w-[95vw] overflow-hidden rounded-2xl border border-border shadow-xl"
       initial={{ opacity: 0, y: 30, scale: 0.92 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 30, scale: 0.92 }}
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
     >
       <div className="relative bg-gradient-to-br from-card to-[hsl(225,25%,8%)] px-4 sm:px-5 py-4">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,hsl(210,100%,60%,0.08),transparent_60%)]" />
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 ring-1 ring-primary/25 flex-shrink-0">
-              <Navigation className="h-5 w-5 text-primary" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0" style={{ background: (currentConfig?.color || "#FACC15") + "20", boxShadow: `0 0 0 1px ${currentConfig?.color || "#FACC15"}40` }}>
+              <Navigation className="h-5 w-5" style={{ color: currentConfig?.color || "#FACC15" }} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-display text-sm font-bold text-foreground">Road Route</p>
@@ -198,12 +209,12 @@ function RoadDetailsPanel({
       </div>
 
       <div className="bg-card px-4 sm:px-5 py-4 space-y-4">
-        {/* Route - vertical layout for full names */}
+        {/* Route */}
         <div className="rounded-lg bg-accent/60 px-3.5 py-3 space-y-2">
           <div className="flex items-start gap-2.5">
             <div className="flex flex-col items-center pt-1 flex-shrink-0">
-              <div className="w-2.5 h-2.5 rounded-full bg-primary" />
-              <div className="w-0.5 h-5 bg-primary/30 mt-0.5" />
+              <div className="w-2.5 h-2.5 rounded-full" style={{ background: currentConfig?.color || "#FACC15" }} />
+              <div className="w-0.5 h-5 mt-0.5" style={{ background: (currentConfig?.color || "#FACC15") + "40" }} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">From</p>
@@ -212,7 +223,7 @@ function RoadDetailsPanel({
           </div>
           <div className="flex items-start gap-2.5">
             <div className="flex flex-col items-center pt-1 flex-shrink-0">
-              <div className="w-2.5 h-2.5 rounded-full border-2 border-primary bg-card" />
+              <div className="w-2.5 h-2.5 rounded-full border-2 bg-card" style={{ borderColor: currentConfig?.color || "#FACC15" }} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">To</p>
@@ -234,6 +245,7 @@ function RoadDetailsPanel({
           </div>
         )}
 
+        {/* Mode switcher - only Car/Bike/Walk, no train */}
         <div className="grid grid-cols-3 gap-2 pt-1">
           {ROAD_MODES.map(({ mode, icon: Icon, label, color }) => {
             const modeData = roadInfo.modes.find((m) => m.transport_mode === mode);
@@ -244,9 +256,10 @@ function RoadDetailsPanel({
                 onClick={() => onModeChange(mode)}
                 className={`relative flex flex-col items-center gap-1.5 rounded-xl py-3 transition-all duration-200 ${
                   isSelected
-                    ? "bg-primary/10 ring-1 ring-primary/30 shadow-[0_0_20px_hsl(210,100%,60%,0.08)]"
+                    ? "ring-1 shadow-md"
                     : "bg-accent/30 hover:bg-accent/60 ring-1 ring-transparent"
                 }`}
+                style={isSelected ? { background: color + "18", ringColor: color + "40", boxShadow: `0 0 20px ${color}15` } : undefined}
               >
                 <Icon className="h-5 w-5 transition-colors" style={{ color: isSelected ? color : "hsl(215,20%,50%)" }} />
                 <span className="text-[11px] font-bold capitalize" style={{ color: isSelected ? color : undefined }}>
@@ -280,9 +293,10 @@ export function SegmentDetailsPanel({
   selectedMode,
   onModeChange,
   onClose,
+  isFixed,
 }: SegmentDetailsPanelProps) {
   if (type === "train" && trainInfo) {
-    return <TrainDetailsPanel trainInfo={trainInfo} onClose={onClose} />;
+    return <TrainDetailsPanel trainInfo={trainInfo} onClose={onClose} isFixed={isFixed} />;
   }
 
   if (type === "road" && roadInfo) {
