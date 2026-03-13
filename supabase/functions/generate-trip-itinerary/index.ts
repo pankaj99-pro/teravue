@@ -11,7 +11,7 @@ const ITINERARY_TOOL = {
   type: "function",
   function: {
     name: "create_trip_itinerary",
-    description: "Generate a structured multi-day travel itinerary",
+    description: "Generate a structured multi-day travel itinerary with segment-based travel modes. Each activity represents a segment with travel mode info.",
     parameters: {
       type: "object",
       properties: {
@@ -36,12 +36,26 @@ const ITINERARY_TOOL = {
                     location_name: { type: "string" },
                     latitude: { type: "number" },
                     longitude: { type: "number" },
-                    activity_type: { type: "string", enum: ["flight", "hotel", "restaurant", "attraction", "transport"] },
+                    activity_type: {
+                      type: "string",
+                      enum: ["flight", "train", "hotel", "restaurant", "attraction", "transport"],
+                      description: "Type of activity. Use 'train' for rail travel segments, 'flight' for air travel segments, 'transport' for road-based taxi/bike/walk segments.",
+                    },
                     start_time: { type: "string" },
                     end_time: { type: "string" },
                     price_estimate: { type: "number" },
                     booking_url: { type: "string" },
                     image_url: { type: "string" },
+                    train_number: { type: "string", description: "Train number if activity_type is train" },
+                    train_name: { type: "string", description: "Train name if activity_type is train" },
+                    departure_time: { type: "string", description: "Departure time for train/flight" },
+                    arrival_time: { type: "string", description: "Arrival time for train/flight" },
+                    platform: { type: "string", description: "Platform number for train" },
+                    intermediate_stops: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "Intermediate station stops for train journeys",
+                    },
                   },
                   required: ["title", "location_name", "activity_type"],
                 },
@@ -82,15 +96,43 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub;
 
-    const { destination, trip_length_days, budget, travelers, interests, start_date } = await req.json();
+    const { destination, trip_length_days, budget, travelers, interests, start_date, travel_mode } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    const travelModeInstruction = travel_mode
+      ? `Preferred long-distance travel mode: ${travel_mode}. Use this for inter-city segments.`
+      : "Choose the most appropriate travel mode based on distance: flight for international/very long distances, train for domestic inter-city, taxi/walk for local.";
 
     const prompt = `Plan a ${trip_length_days}-day trip to ${destination} for ${travelers || 1} traveler(s).
 Budget: $${budget || "flexible"}.
 Interests: ${(interests || ["general"]).join(", ")}.
 Start date: ${start_date || "upcoming"}.
+${travelModeInstruction}
+
+CRITICAL RULES FOR SEGMENT-BASED TRAVEL:
+1. Every movement between locations must be a separate activity with the correct activity_type.
+2. Trip flow must be segment-based:
+   - Segment from home/hotel to station/airport: activity_type = "transport"
+   - Inter-city rail segment: activity_type = "train" (include train_number, train_name, departure_time, arrival_time, platform, intermediate_stops)
+   - Inter-city air segment: activity_type = "flight" (include departure_time, arrival_time)
+   - Local travel between attractions: activity_type = "transport"
+   - Sightseeing: activity_type = "attraction"
+   - Meals: activity_type = "restaurant"
+   - Accommodation: activity_type = "hotel"
+
+3. SEQUENCING RULES (VERY IMPORTANT):
+   - Start from the user's source city
+   - Visit ALL tourist places in the current city before moving to the next city
+   - Never backtrack to a previously visited city
+   - Each day should start where the previous day ended
+   - Return journey should be the last segments of the trip
+   - For domestic travel: detect nearest railway station or airport from the user's city
+   - For international travel: always use flight for cross-country segments
+
+4. Include latitude and longitude for EVERY activity so the map can render correctly.
+
 Generate a complete day-by-day itinerary with realistic locations, times, and prices.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -100,9 +142,21 @@ Generate a complete day-by-day itinerary with realistic locations, times, and pr
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "openai/gpt-5-mini",
         messages: [
-          { role: "system", content: "You are a world-class travel planner. Generate detailed, realistic itineraries using the provided tool." },
+          {
+            role: "system",
+            content: `You are a world-class travel planner. Generate detailed, realistic itineraries using the provided tool.
+
+KEY PRINCIPLES:
+- Every trip is a sequence of segments: home → station/airport → destination station/airport → local attractions → next city → ... → return home
+- Train and flight segments are FIXED modes and must include full transport details
+- Local travel between attractions uses taxi/bike/walk (activity_type: "transport")
+- Complete ALL sightseeing in one city before moving to the next
+- Never revisit a city once you've left it
+- Each activity MUST have accurate latitude and longitude coordinates
+- Start each day where the previous day ended`,
+          },
           { role: "user", content: prompt },
         ],
         tools: [ITINERARY_TOOL],
@@ -165,6 +219,12 @@ Generate a complete day-by-day itinerary with realistic locations, times, and pr
           price_estimate: a.price_estimate || null,
           booking_url: a.booking_url || null,
           image_url: a.image_url || null,
+          train_number: a.train_number || null,
+          train_name: a.train_name || null,
+          departure_time: a.departure_time || null,
+          arrival_time: a.arrival_time || null,
+          platform: a.platform || null,
+          intermediate_stops: a.intermediate_stops || null,
         }));
 
         const { error: actError } = await supabase.from("activities").insert(activitiesData);

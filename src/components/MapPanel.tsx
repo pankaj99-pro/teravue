@@ -190,7 +190,7 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         className="w-full h-full z-0"
         zoomControl={false}
         attributionControl={false}
-        style={{ background: "hsl(225, 20%, 12%)" }}
+        style={{ background: "hsl(220, 15%, 92%)" }}
       >
         {/* Medium-dark map theme */}
         <TileLayer
