@@ -58,7 +58,7 @@ function TrainDetailsPanel({ trainInfo, onClose, isFixed }: { trainInfo: TrainSe
 
   return (
     <motion.div
-      className="absolute bottom-20 left-2 sm:left-4 z-[1000] w-[calc(100%-1rem)] sm:w-[340px] max-w-[95vw] overflow-hidden rounded-2xl border shadow-xl"
+      className="absolute bottom-20 left-2 sm:left-4 z-[1000] w-[calc(100%-1rem)] sm:w-[340px] max-w-[95vw] max-h-[60vh] overflow-y-auto rounded-2xl border shadow-xl scrollbar-hide"
       style={{ borderColor: "#2563EB40" }}
       initial={{ opacity: 0, y: 30, scale: 0.92 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
