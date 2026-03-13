@@ -68,10 +68,10 @@ function createNumberedIcon(id: number, isActive: boolean) {
     html: `<div style="
       width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
       font-size:13px;font-weight:700;font-family:'Space Grotesk',Inter,sans-serif;
-      background:${isActive ? "#2563EB" : "hsl(225,25%,16%)"};
-      color:${isActive ? "#fff" : "hsl(210,40%,90%)"};
-      border:2.5px solid ${isActive ? "#60a5fa" : "hsl(225,15%,30%)"};
-      box-shadow:${isActive ? "0 0 20px rgba(37,99,235,0.5)" : "0 2px 8px rgba(0,0,0,0.3)"};
+      background:${isActive ? "#2563EB" : "#ffffff"};
+      color:${isActive ? "#fff" : "#1e293b"};
+      border:2.5px solid ${isActive ? "#60a5fa" : "#cbd5e1"};
+      box-shadow:${isActive ? "0 0 20px rgba(37,99,235,0.5)" : "0 2px 8px rgba(0,0,0,0.15)"};
       transform:${isActive ? "scale(1.25)" : "scale(1)"};
       transition:all 0.3s;
     ">${id}</div>`,
