@@ -33,8 +33,6 @@ function generateFlightArc(start: [number, number], end: [number, number], numPo
   const midLng = (start[1] + end[1]) / 2;
   const dx = end[1] - start[1];
   const dy = end[0] - start[0];
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  // Control point perpendicular to midpoint, height proportional to distance
   const controlLat = midLat + (-dx * 0.3);
   const controlLng = midLng + (dy * 0.3);
 
@@ -49,8 +47,8 @@ function generateFlightArc(start: [number, number], end: [number, number], numPo
 }
 
 /**
- * A polyline that animates its stroke from 0% to 100% length,
- * with transport icons along the path and flight arc support.
+ * A static polyline with transport icons along the path.
+ * Train & Flight: no animation. Road: no animation.
  */
 export function AnimatedPolyline({
   positions,
@@ -67,9 +65,6 @@ export function AnimatedPolyline({
   const map = useMap();
   const polylineRef = useRef<L.Polyline | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
-  const animMarkerRef = useRef<L.Marker | null>(null);
-  const rafRef = useRef<number>(0);
-  const flightRafRef = useRef<number>(0);
 
   useEffect(() => {
     if (!positions || positions.length < 2) return;
@@ -82,7 +77,7 @@ export function AnimatedPolyline({
     const line = L.polyline(renderPositions, {
       color,
       weight,
-      opacity: 0,
+      opacity,
       dashArray: isFlight ? undefined : dashArray,
       interactive: !!onClick,
       lineCap: "round",
@@ -102,21 +97,22 @@ export function AnimatedPolyline({
 
     polylineRef.current = line;
 
-    // Add repeating transport icons along the path (not for flights - those get animated icon)
+    // Add repeating transport icons along the path
     const effectiveType = transportType || (isFlight ? "flight" : "car");
     const emoji = TRANSPORT_EMOJIS[effectiveType] || "🚕";
     const addedMarkers: L.Marker[] = [];
 
-    if (!isFlight && renderPositions.length > 2) {
+    if (renderPositions.length > 2) {
       // Place icons every ~25% of the path
       const step = Math.max(1, Math.floor(renderPositions.length / 4));
       for (let i = step; i < renderPositions.length - 1; i += step) {
         const pos = renderPositions[i];
+        const iconSize = isFlight ? 32 : 28;
         const icon = L.divIcon({
           className: "transport-icon-marker",
           html: `<div style="
-            font-size:16px;
-            width:28px;height:28px;
+            font-size:${isFlight ? 18 : 16}px;
+            width:${iconSize}px;height:${iconSize}px;
             display:flex;align-items:center;justify-content:center;
             background:${color};
             border-radius:50%;
@@ -124,114 +120,21 @@ export function AnimatedPolyline({
             border:2px solid rgba(255,255,255,0.2);
             pointer-events:none;
           ">${emoji}</div>`,
-          iconSize: [28, 28],
-          iconAnchor: [14, 14],
+          iconSize: [iconSize, iconSize],
+          iconAnchor: [iconSize / 2, iconSize / 2],
         });
         const marker = L.marker(pos, { icon, interactive: false }).addTo(map);
         addedMarkers.push(marker);
       }
     }
 
-    // For flights, add animated moving icon
-    if (isFlight) {
-      const flightIcon = L.divIcon({
-        className: "flight-animated-marker",
-        html: `<div style="
-          font-size:20px;
-          width:32px;height:32px;
-          display:flex;align-items:center;justify-content:center;
-          background:${color};
-          border-radius:50%;
-          box-shadow:0 0 16px ${color}, 0 2px 8px rgba(0,0,0,0.4);
-          border:2px solid rgba(255,255,255,0.3);
-          pointer-events:none;
-          transition:transform 0.1s;
-        ">✈️</div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
-      });
-      const animMarker = L.marker(renderPositions[0], { icon: flightIcon, interactive: false }).addTo(map);
-      animMarkerRef.current = animMarker;
-
-      // Animate flight icon along the arc continuously
-      let flightProgress = 0;
-      const animateFlight = () => {
-        flightProgress += 0.003;
-        if (flightProgress > 1) flightProgress = 0;
-        const idx = Math.floor(flightProgress * (renderPositions.length - 1));
-        const pos = renderPositions[Math.min(idx, renderPositions.length - 1)];
-        animMarker.setLatLng(pos);
-        flightRafRef.current = requestAnimationFrame(animateFlight);
-      };
-      // Start flight animation after draw animation
-      setTimeout(() => {
-        flightRafRef.current = requestAnimationFrame(animateFlight);
-      }, delay + duration);
-    }
-
     markersRef.current = addedMarkers;
 
-    // Draw animation
-    const el = (line as any)._path as SVGPathElement | undefined;
-    const startTime = performance.now() + delay;
-
-    // Hide markers initially
-    for (const m of addedMarkers) {
-      const mEl = (m as any)._icon as HTMLElement | undefined;
-      if (mEl) mEl.style.opacity = "0";
-    }
-
-    const animate = (now: number) => {
-      const elapsed = now - startTime;
-      if (elapsed < 0) {
-        rafRef.current = requestAnimationFrame(animate);
-        return;
-      }
-
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-
-      if (el) {
-        const totalLength = el.getTotalLength();
-        const visible = totalLength * eased;
-        const hidden = totalLength - visible;
-        el.style.strokeDasharray = `${visible} ${hidden}`;
-        el.style.strokeDashoffset = "0";
-        line.setStyle({ opacity });
-      } else {
-        line.setStyle({ opacity: opacity * eased });
-      }
-
-      // Fade in markers proportionally
-      for (let mi = 0; mi < addedMarkers.length; mi++) {
-        const markerProgress = (mi + 1) / (addedMarkers.length + 1);
-        const mEl = (addedMarkers[mi] as any)._icon as HTMLElement | undefined;
-        if (mEl) {
-          mEl.style.opacity = eased >= markerProgress ? "1" : "0";
-          mEl.style.transition = "opacity 0.3s";
-        }
-      }
-
-      if (progress < 1) {
-        rafRef.current = requestAnimationFrame(animate);
-      } else {
-        // After animation completes, set final dash pattern
-        if (el && dashArray && !isFlight) {
-          el.style.strokeDasharray = dashArray;
-        }
-      }
-    };
-
-    rafRef.current = requestAnimationFrame(animate);
-
     return () => {
-      cancelAnimationFrame(rafRef.current);
-      cancelAnimationFrame(flightRafRef.current);
       if (polylineRef.current) map.removeLayer(polylineRef.current);
       for (const m of markersRef.current) map.removeLayer(m);
-      if (animMarkerRef.current) map.removeLayer(animMarkerRef.current);
     };
-  }, [positions, color, weight, opacity, dashArray, isFlight, transportType, delay, duration, map, onClick]);
+  }, [positions, color, weight, opacity, dashArray, isFlight, transportType, map, onClick]);
 
   return null;
 }
