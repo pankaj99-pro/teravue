@@ -133,15 +133,17 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
   const segmentTypes = useMemo(() => {
     return stops.slice(0, -1).map((from, i) => {
       const to = stops[i + 1];
+      const fromLabel = from.label.toLowerCase();
+      const toLabel = to.label.toLowerCase();
       const isTrain =
         from.activityType === "train" || to.activityType === "train" ||
-        !!from.trainNumber || !!to.trainNumber;
+        !!from.trainNumber || !!to.trainNumber ||
+        /station|junction|express|rajdhani|shatabdi|duronto/i.test(from.label) ||
+        /station|junction|express|rajdhani|shatabdi|duronto/i.test(to.label);
       const isFlight =
         from.activityType === "flight" || to.activityType === "flight" ||
-        from.label.toLowerCase().includes("airport") ||
-        to.label.toLowerCase().includes("airport") ||
-        from.label.toLowerCase().includes("flight") ||
-        to.label.toLowerCase().includes("flight");
+        fromLabel.includes("airport") || toLabel.includes("airport") ||
+        fromLabel.includes("flight") || toLabel.includes("flight");
       const transport: SegmentTransport = isTrain ? "train" : isFlight ? "flight" : selectedMode;
       return { from, to, isTrain, isFlight, transport };
     });

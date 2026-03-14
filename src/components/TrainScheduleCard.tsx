@@ -49,14 +49,12 @@ export function TrainScheduleCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            {trainNumber && (
-              <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
-                {trainNumber}
-              </span>
-            )}
-            {trainName && (
-              <span className="text-xs font-medium text-foreground truncate">{trainName}</span>
-            )}
+            <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+              {trainNumber || "Train"}
+            </span>
+            <span className="text-xs font-medium text-foreground truncate">
+              {trainName || `${fromLocation} → ${toLocation}`}
+            </span>
           </div>
         </div>
         {price && (

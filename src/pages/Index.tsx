@@ -284,7 +284,8 @@ export default function Index() {
                   ) : (
                     currentItems.map((item, i) => {
                       const stop = currentDayPlan?.stops[i];
-                      const isTrain = stop?.image === "train" || !!stop?.trainNumber;
+                      const isTrain = stop?.image === "train" || !!stop?.trainNumber ||
+                        (stop?.title && /→|station|junction|express|rajdhani|shatabdi|duronto/i.test(stop.title));
 
                       if (isTrain && stop) {
                         const parts = stop.title.split("→").map(s => s.trim());
