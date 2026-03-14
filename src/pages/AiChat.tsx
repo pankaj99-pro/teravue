@@ -290,16 +290,18 @@ export default function AiChat() {
           );
 
           if (name === "create_itinerary") {
+            const normalizedPlan = normalizeTripPlan(args);
             let savedTripId: string | undefined;
+
             if (user) {
-              const tripId = await saveTripToDatabase(args, user.id);
+              const tripId = await saveTripToDatabase(normalizedPlan, user.id);
               if (tripId) {
                 savedTripId = tripId;
-                args.tripId = tripId;
+                normalizedPlan.tripId = tripId;
               }
             }
 
-            setTripPlan(args);
+            setTripPlan(normalizedPlan);
             toast.success(savedTripId
               ? "✨ Itinerary generated and saved! View it on the Itinerary page."
               : "✨ Itinerary generated! Sign in to save your trips."
@@ -310,7 +312,7 @@ export default function AiChat() {
                   ? {
                       ...s,
                       hasItinerary: true,
-                      tripDestination: args.destination,
+                      tripDestination: normalizedPlan.destination,
                       messages: s.messages.map((m) =>
                         m.id === assistantId ? { ...m, hasItinerary: true, toolCalls: finalToolCalls } : m
                       ),
@@ -325,7 +327,7 @@ export default function AiChat() {
               if (session?.dbId) {
                 await supabase.from("chat_sessions").update({
                   has_itinerary: true,
-                  trip_destination: args.destination,
+                  trip_destination: normalizedPlan.destination,
                   updated_at: new Date().toISOString(),
                 }).eq("id", session.dbId);
               }
