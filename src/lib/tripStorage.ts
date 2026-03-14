@@ -262,7 +262,7 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
     tripId: trip.id,
     destination: trip.destination_city || "Unknown",
     country: trip.destination_country || "Unknown",
-    countryFlag: flagMap[trip.destination_country || ""] || "🌍",
+    countryFlag,
     totalDays: planDays.length,
     dateRange,
     travelers: `${trip.travelers_count || 2} Travelers`,
