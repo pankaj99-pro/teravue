@@ -95,6 +95,8 @@ When using trains for inter-city edges, you MUST ALWAYS include ALL of these fie
 - CRITICAL: Between each stop, add a brief transport hint in the title
 - CRITICAL: The FIRST stop of Day 2, 3, 4... MUST be geographically near the LAST stop of the previous day
 - CRITICAL: Within each day, sort stops by geographic proximity
+- CRITICAL: Meal timing sanity rules — Breakfast 6:00-10:30 AM, Lunch 12:00-3:00 PM, Dinner 6:00-10:30 PM (never schedule lunch at night or dinner in the morning)
+- CRITICAL: For every train segment, include both trainNumber and trainName; never leave either blank
 
 For the image field, use one of these categories:
 - "airport" for airports/flights
