@@ -259,7 +259,7 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
     dateRange = firstDate === lastDate ? firstDate : `${firstDate} – ${lastDate}`;
   }
 
-  return {
+  const rawPlan: TripPlan = {
     tripId: trip.id,
     destination: trip.destination_city || "Unknown",
     country: trip.destination_country || "Unknown",
@@ -270,6 +270,8 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
     avgBudget: `$${(trip.estimated_budget || 0).toLocaleString()} Avg.`,
     days: planDays,
   };
+
+  return normalizeTripPlan(rawPlan);
 }
 
 export async function deleteTrip(tripId: string) {
