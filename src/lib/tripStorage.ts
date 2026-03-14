@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { TripPlan, DayPlan } from "@/contexts/ItineraryContext";
+import { normalizeTripPlan } from "@/lib/itineraryNormalizer";
 
 const extractNumber = (value: string | undefined, fallback = 0) => {
   if (!value) return fallback;
@@ -204,8 +205,8 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
       .map((a: any, i: number) => ({
         id: i + 1,
         time: a.start_time
-          ? new Date(a.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-          : "",
+          ? new Date(a.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })
+          : (a.departure_time || ""),
         title: a.title,
         location: a.location_name || "",
         price: a.price_estimate ? `$${Number(a.price_estimate).toFixed(2)}` : undefined,
@@ -258,7 +259,7 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
     dateRange = firstDate === lastDate ? firstDate : `${firstDate} – ${lastDate}`;
   }
 
-  return {
+  const rawPlan: TripPlan = {
     tripId: trip.id,
     destination: trip.destination_city || "Unknown",
     country: trip.destination_country || "Unknown",
@@ -269,6 +270,8 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
     avgBudget: `$${(trip.estimated_budget || 0).toLocaleString()} Avg.`,
     days: planDays,
   };
+
+  return normalizeTripPlan(rawPlan);
 }
 
 export async function deleteTrip(tripId: string) {
