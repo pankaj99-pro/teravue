@@ -70,12 +70,17 @@ Between stops, choose transport by distance:
 - Car/taxi → Only when no other option or late night
 - Inter-city → Train (preferred) or Bus
 
-### 7. TRAIN SEGMENT METADATA
-When using trains for inter-city edges:
-- Set the stop's "image" to "train"
-- Include trainNumber, trainName, departureTime, arrivalTime, platform, and intermediateStops
-- Title format: "City A → City B (Train 12345)"
-- Include ALL intermediate station stops the train passes through
+### 7. TRAIN SEGMENT METADATA (MANDATORY — NEVER SKIP)
+When using trains for inter-city edges, you MUST ALWAYS include ALL of these fields:
+- "image": MUST be "train" (not "transport")
+- "trainNumber": e.g. "12192" — REQUIRED, never omit
+- "trainName": e.g. "Shridham SF Express" — REQUIRED, never omit
+- "departureTime": e.g. "10:30 PM" — REQUIRED
+- "arrivalTime": e.g. "6:15 AM" — REQUIRED
+- "platform": e.g. "3" — REQUIRED
+- "intermediateStops": array of station names — REQUIRED (at least 2-3 stops)
+- Title format: "City A → City B" (do NOT put train number in title)
+- The countryFlag field MUST always be set to the correct country flag emoji
 
 ## Itinerary Guidelines
 - Create realistic times, locations, and prices
