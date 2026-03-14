@@ -228,7 +228,7 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
       })),
   }));
 
-  const flagMap: Record<string, string> = {
+  const flagMapRaw: Record<string, string> = {
     Italy: "🇮🇹", Japan: "🇯🇵", France: "🇫🇷", Spain: "🇪🇸", Greece: "🇬🇷",
     Thailand: "🇹🇭", Indonesia: "🇮🇩", USA: "🇺🇸", UK: "🇬🇧", Germany: "🇩🇪",
     Portugal: "🇵🇹", Turkey: "🇹🇷", India: "🇮🇳", Australia: "🇦🇺", Mexico: "🇲🇽",
@@ -243,6 +243,10 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
     Tanzania: "🇹🇿", "South Africa": "🇿🇦", Cuba: "🇨🇺", Jamaica: "🇯🇲",
     "Costa Rica": "🇨🇷", Chile: "🇨🇱", Ecuador: "🇪🇨", Russia: "🇷🇺",
   };
+  // Case-insensitive flag lookup
+  const flagMap = new Map(Object.entries(flagMapRaw).map(([k, v]) => [k.toLowerCase(), v]));
+  const countryKey = (trip.destination_country || "").toLowerCase();
+  const countryFlag = flagMap.get(countryKey) || "🌍";
 
   // Derive dateRange from day dates
   let dateRange = "";
