@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { TripPlan, DayPlan } from "@/contexts/ItineraryContext";
+import { normalizeTripPlan } from "@/lib/itineraryNormalizer";
 
 const extractNumber = (value: string | undefined, fallback = 0) => {
   if (!value) return fallback;
