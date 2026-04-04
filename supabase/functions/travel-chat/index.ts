@@ -187,7 +187,7 @@ const SEARCH_TRAINS_TOOL = {
   type: "function",
   function: {
     name: "search_trains",
-    description: "Search for train connections between cities. Use this instead of search_flights when the user wants to travel by train.",
+    description: "Search for DIRECT train connections between cities. Prefer direct routes. If no direct train, find the route with fewest transfers. NEVER route through distant transit hubs when a shorter path exists.",
     parameters: {
       type: "object",
       properties: {
