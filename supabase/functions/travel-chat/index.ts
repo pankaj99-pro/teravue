@@ -205,7 +205,17 @@ const CREATE_ITINERARY_TOOL = {
   type: "function",
   function: {
     name: "create_itinerary",
-    description: "Create the final structured travel itinerary. Call this LAST after all research is done. ABSOLUTE RULE: For multi-city trips, complete ALL activities in one city before moving to the next — NEVER revisit a city. Order stops within each city using nearest-neighbor. Day N+1 starts from Day N's last location. For train trips, include trainNumber, trainName, departureTime, arrivalTime, and intermediateStops.",
+    description: `Create the final structured travel itinerary. Call this LAST after all research is done.
+
+ABSOLUTE RULES:
+1. BEFORE generating days, compute the geographic shortest path through all destination cities from origin. Visit cities in that order.
+2. Never use a transit city (like Delhi) as an overnight stop unless it is an explicit destination.
+3. Complete ALL activities in one city before moving to the next — NEVER revisit a city.
+4. Order stops within each city using nearest-neighbor.
+5. Day N+1 starts from Day N's last location.
+6. For train trips: EVERY train stop MUST have image="train", trainNumber, trainName, departureTime, arrivalTime, platform, and intermediateStops. NEVER use image="airport" for train trips.
+7. Restaurant stops MUST follow meal windows: breakfast 6-10:30AM, lunch 12-3PM, dinner 6-10:30PM.
+8. Arrival day: max 3 stops after hotel. Departure day: max 2 stops before station.`,
     parameters: {
       type: "object",
       properties: {
@@ -236,15 +246,15 @@ const CREATE_ITINERARY_TOOL = {
                     price: { type: "string", description: "e.g. '$130.00'" },
                     priceLabel: { type: "string", description: "e.g. 'per night'" },
                     buttonLabel: { type: "string", description: "CTA like 'Book a Flight' or 'View Train'" },
-                    image: { type: "string", description: "Category: airport, hotel, restaurant, landmark, activity, transport, train" },
+                    image: { type: "string", description: "Category: hotel, restaurant, landmark, activity, transport, train, airport" },
                     lat: { type: "number", description: "Latitude" },
                     lng: { type: "number", description: "Longitude" },
-                    trainNumber: { type: "string", description: "Train number (for train stops)" },
-                    trainName: { type: "string", description: "Train name (for train stops)" },
-                    departureTime: { type: "string", description: "Departure time (for train stops, e.g. '08:30 AM')" },
-                    arrivalTime: { type: "string", description: "Arrival time (for train stops, e.g. '02:45 PM')" },
-                    intermediateStops: { type: "array", items: { type: "string" }, description: "Key intermediate stations for train journeys" },
-                    platform: { type: "string", description: "Platform number (for train stops)" },
+                    trainNumber: { type: "string", description: "Train number — REQUIRED for train stops" },
+                    trainName: { type: "string", description: "Train name — REQUIRED for train stops" },
+                    departureTime: { type: "string", description: "Departure time — REQUIRED for train stops" },
+                    arrivalTime: { type: "string", description: "Arrival time — REQUIRED for train stops" },
+                    intermediateStops: { type: "array", items: { type: "string" }, description: "Key intermediate stations — REQUIRED for train stops" },
+                    platform: { type: "string", description: "Platform number — REQUIRED for train stops" },
                   },
                   required: ["id", "time", "title", "location", "buttonLabel", "image", "lat", "lng"],
                 },
