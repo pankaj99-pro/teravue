@@ -100,15 +100,42 @@ const detectMealType = (title: string): keyof typeof MEAL_WINDOWS | null => {
   return null;
 };
 
-const normalizeMealTime = (title: string, current?: string): string => {
-  const mealType = detectMealType(title);
-  if (!mealType) return current || "";
+/** Infer meal type from time-of-day for restaurant stops without explicit keywords */
+const inferMealTypeFromTime = (timeMinutes: number): keyof typeof MEAL_WINDOWS | null => {
+  if (timeMinutes >= 6 * 60 && timeMinutes <= 10 * 60 + 30) return "breakfast";
+  if (timeMinutes >= 12 * 60 && timeMinutes <= 15 * 60) return "lunch";
+  if (timeMinutes >= 18 * 60 && timeMinutes <= 22 * 60 + 30) return "dinner";
+  // Edge cases: 10:31-11:59 → brunch, 15:01-17:59 → late lunch, 22:31+ → late dinner
+  if (timeMinutes >= 10 * 60 + 31 && timeMinutes < 12 * 60) return "brunch";
+  if (timeMinutes >= 15 * 60 + 1 && timeMinutes < 18 * 60) return "lunch"; // treat as late lunch
+  return null;
+};
 
-  const window = MEAL_WINDOWS[mealType];
-  const parsed = toMinutes(current);
-  if (parsed == null) return toTimeLabel(window.fallback);
-  if (parsed >= window.start && parsed <= window.end) return current || toTimeLabel(parsed);
-  return toTimeLabel(window.fallback);
+const normalizeMealTime = (title: string, current?: string, image?: string): string => {
+  const mealType = detectMealType(title);
+  
+  if (mealType) {
+    const window = MEAL_WINDOWS[mealType];
+    const parsed = toMinutes(current);
+    if (parsed == null) return toTimeLabel(window.fallback);
+    if (parsed >= window.start && parsed <= window.end) return current || toTimeLabel(parsed);
+    return toTimeLabel(window.fallback);
+  }
+
+  // For restaurant stops without explicit meal keywords, infer and validate from time
+  if (image === "restaurant" && current) {
+    const parsed = toMinutes(current);
+    if (parsed != null) {
+      const inferredMeal = inferMealTypeFromTime(parsed);
+      if (inferredMeal) {
+        const window = MEAL_WINDOWS[inferredMeal];
+        if (parsed >= window.start && parsed <= window.end) return current;
+        return toTimeLabel(window.fallback);
+      }
+    }
+  }
+
+  return current || "";
 };
 
 export function normalizeItineraryStop(stop: ItineraryStop, index: number): ItineraryStop {
@@ -127,7 +154,7 @@ export function normalizeItineraryStop(stop: ItineraryStop, index: number): Itin
 
   const time = looksTrain
     ? (departureTime || stop.time || "")
-    : normalizeMealTime(title, stop.time);
+    : normalizeMealTime(title, stop.time, image);
 
   return {
     ...stop,
@@ -143,13 +170,37 @@ export function normalizeItineraryStop(stop: ItineraryStop, index: number): Itin
   };
 }
 
+/** Post-normalization: ensure chronological ordering within each day */
+function enforceChronologicalOrder(stops: ItineraryStop[]): ItineraryStop[] {
+  let lastMinutes = 0;
+  return stops.map((stop, i) => {
+    const parsed = toMinutes(stop.time);
+    if (parsed == null) return stop;
+    
+    if (i > 0 && parsed < lastMinutes) {
+      // This stop's time is before the previous stop — push it forward by 30 min
+      const corrected = lastMinutes + 30;
+      lastMinutes = corrected;
+      return { ...stop, time: toTimeLabel(corrected) };
+    }
+    
+    lastMinutes = parsed;
+    return stop;
+  });
+}
+
 export function normalizeTripPlan(plan: TripPlan): TripPlan {
-  const normalizedDays: DayPlan[] = (plan.days || []).map((day, dayIndex) => ({
-    ...day,
-    day: day.day || dayIndex + 1,
-    title: day.title || `Day ${day.day || dayIndex + 1}`,
-    stops: (day.stops || []).map((stop, i) => normalizeItineraryStop(stop, i)),
-  }));
+  const normalizedDays: DayPlan[] = (plan.days || []).map((day, dayIndex) => {
+    const normalizedStops = (day.stops || []).map((stop, i) => normalizeItineraryStop(stop, i));
+    const orderedStops = enforceChronologicalOrder(normalizedStops);
+    
+    return {
+      ...day,
+      day: day.day || dayIndex + 1,
+      title: day.title || `Day ${day.day || dayIndex + 1}`,
+      stops: orderedStops,
+    };
+  });
 
   const countryKey = (plan.country || "").trim().toLowerCase();
   const normalizedCountryFlag =

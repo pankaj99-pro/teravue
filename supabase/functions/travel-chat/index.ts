@@ -17,6 +17,14 @@ IMPORTANT: Always respond in English only, regardless of the destination.
 - If the user mentions "flight", "fly", "airplane" → use "search_flights"
 - If not specified, default to "search_flights"
 
+## CRITICAL: TRAIN-ONLY MODE
+When the user says "via Train" or "by train":
+- NEVER use flights. ALL inter-city segments MUST use image: "train" with full train metadata.
+- NEVER use image: "airport" for any stop.
+- If no direct train exists between two cities, find trains with the fewest transfers. Do NOT substitute with flights.
+- Transit hubs (e.g. Delhi, Mumbai, Kolkata) must NOT appear as overnight stops unless the user explicitly requests them as a destination.
+- Prefer DIRECT train routes: Origin → Destination. Do NOT route through a distant hub when a shorter/direct route exists.
+
 ## Agentic Workflow
 When a user asks you to plan a trip, follow this sequential process:
 1. First call "search_flights" OR "search_trains" (based on user preference) to find transport options
@@ -46,11 +54,13 @@ WRONG (backtracking loop): JBP → Agra → Vrindavan → Agra → Vrindavan
 CORRECT (forward path):   JBP → Agra (complete) → Vrindavan (complete) → JBP (return)
 
 ### 3. OPTIMAL CITY SEQUENCE (Shortest Hamiltonian Path)
-Determine the optimal order to visit all cities BEFORE scheduling days:
-- Find the geographic sequence that minimizes total inter-city travel
+BEFORE generating ANY days, compute the geographic shortest path:
+- Plot all destinations on a mental map
+- Find the order that minimizes total inter-city travel distance
 - Follow train line order when using rail (cities along the same line visited sequentially)
 - No zigzagging — forward progression only
 - Example: If train goes Origin → A → B, visit A fully first, then B
+- NEVER visit a city just because it's a transit hub — go directly to the first destination
 
 ### 4. INTRA-CITY TSP (Nearest-Neighbor Attraction Ordering)
 Within each city, solve a mini Traveling Salesman Problem:
@@ -72,7 +82,7 @@ Between stops, choose transport by distance:
 
 ### 7. TRAIN SEGMENT METADATA (MANDATORY — NEVER SKIP)
 When using trains for inter-city edges, you MUST ALWAYS include ALL of these fields:
-- "image": MUST be "train" (not "transport")
+- "image": MUST be "train" (not "transport", not "airport")
 - "trainNumber": e.g. "12192" — REQUIRED, never omit
 - "trainName": e.g. "Shridham SF Express" — REQUIRED, never omit
 - "departureTime": e.g. "10:30 PM" — REQUIRED
@@ -82,12 +92,27 @@ When using trains for inter-city edges, you MUST ALWAYS include ALL of these fie
 - Title format: "City A → City B" (do NOT put train number in title)
 - The countryFlag field MUST always be set to the correct country flag emoji
 
+## MEAL TIMING RULES (MANDATORY)
+- Breakfast: 6:00 AM – 10:30 AM ONLY
+- Lunch: 12:00 PM – 3:00 PM ONLY
+- Dinner: 6:00 PM – 10:30 PM ONLY
+- ANY stop with image "restaurant" MUST have its time within the appropriate meal window based on its position in the day
+- A restaurant stop between 12 PM and 3 PM is lunch — never call it dinner
+- A restaurant stop between 6 PM and 10:30 PM is dinner — never call it lunch
+- NEVER schedule a meal outside its window (no lunch at 8 PM, no dinner at 11 AM)
+
+## DAY PACING RULES
+- Day 1 (arrival day): Maximum 3 stops AFTER reaching the hotel. Allow 30-min buffer between consecutive stops.
+- Last day (departure day): Maximum 2 stops BEFORE departing for the station/airport.
+- Regular days: 5-9 stops maximum, with 30-min minimum buffer between activities.
+- Always allow 15-30 min travel buffer between stops that require transport.
+
 ## Itinerary Guidelines
 - Create realistic times, locations, and prices
 - Include a mix of sightseeing, food, and leisure
 - Use well-known landmarks and restaurants
 - Price in USD
-- Each day should have 3-5 stops
+- Each day should have 3-9 stops
 - Always include arrival/departure logistics
 - Use descriptive titles
 - All text fields MUST be in English
@@ -95,17 +120,15 @@ When using trains for inter-city edges, you MUST ALWAYS include ALL of these fie
 - CRITICAL: Between each stop, add a brief transport hint in the title
 - CRITICAL: The FIRST stop of Day 2, 3, 4... MUST be geographically near the LAST stop of the previous day
 - CRITICAL: Within each day, sort stops by geographic proximity
-- CRITICAL: Meal timing sanity rules — Breakfast 6:00-10:30 AM, Lunch 12:00-3:00 PM, Dinner 6:00-10:30 PM (never schedule lunch at night or dinner in the morning)
-- CRITICAL: For every train segment, include both trainNumber and trainName; never leave either blank
 
 For the image field, use one of these categories:
-- "airport" for airports/flights
 - "hotel" for hotels/accommodation
 - "restaurant" for dining
 - "landmark" for sightseeing/attractions
 - "activity" for experiences/tours
-- "transport" for transportation
-- "train" for train journeys (inter-city rail travel)
+- "transport" for local car/taxi/bike transportation
+- "train" for train journeys (inter-city rail travel) — MUST include trainNumber and trainName
+- "airport" for airports/flights — ONLY when user requested flights, NEVER for train trips
 
 If the user asks a general travel question (not requesting a full itinerary), just answer conversationally without calling tools.`;
 
@@ -187,7 +210,7 @@ const SEARCH_TRAINS_TOOL = {
   type: "function",
   function: {
     name: "search_trains",
-    description: "Search for train connections between cities. Use this instead of search_flights when the user wants to travel by train.",
+    description: "Search for DIRECT train connections between cities. Prefer direct routes. If no direct train, find the route with fewest transfers. NEVER route through distant transit hubs when a shorter path exists.",
     parameters: {
       type: "object",
       properties: {
@@ -205,7 +228,17 @@ const CREATE_ITINERARY_TOOL = {
   type: "function",
   function: {
     name: "create_itinerary",
-    description: "Create the final structured travel itinerary. Call this LAST after all research is done. ABSOLUTE RULE: For multi-city trips, complete ALL activities in one city before moving to the next — NEVER revisit a city. Order stops within each city using nearest-neighbor. Day N+1 starts from Day N's last location. For train trips, include trainNumber, trainName, departureTime, arrivalTime, and intermediateStops.",
+    description: `Create the final structured travel itinerary. Call this LAST after all research is done.
+
+ABSOLUTE RULES:
+1. BEFORE generating days, compute the geographic shortest path through all destination cities from origin. Visit cities in that order.
+2. Never use a transit city (like Delhi) as an overnight stop unless it is an explicit destination.
+3. Complete ALL activities in one city before moving to the next — NEVER revisit a city.
+4. Order stops within each city using nearest-neighbor.
+5. Day N+1 starts from Day N's last location.
+6. For train trips: EVERY train stop MUST have image="train", trainNumber, trainName, departureTime, arrivalTime, platform, and intermediateStops. NEVER use image="airport" for train trips.
+7. Restaurant stops MUST follow meal windows: breakfast 6-10:30AM, lunch 12-3PM, dinner 6-10:30PM.
+8. Arrival day: max 3 stops after hotel. Departure day: max 2 stops before station.`,
     parameters: {
       type: "object",
       properties: {
@@ -236,15 +269,15 @@ const CREATE_ITINERARY_TOOL = {
                     price: { type: "string", description: "e.g. '$130.00'" },
                     priceLabel: { type: "string", description: "e.g. 'per night'" },
                     buttonLabel: { type: "string", description: "CTA like 'Book a Flight' or 'View Train'" },
-                    image: { type: "string", description: "Category: airport, hotel, restaurant, landmark, activity, transport, train" },
+                    image: { type: "string", description: "Category: hotel, restaurant, landmark, activity, transport, train, airport" },
                     lat: { type: "number", description: "Latitude" },
                     lng: { type: "number", description: "Longitude" },
-                    trainNumber: { type: "string", description: "Train number (for train stops)" },
-                    trainName: { type: "string", description: "Train name (for train stops)" },
-                    departureTime: { type: "string", description: "Departure time (for train stops, e.g. '08:30 AM')" },
-                    arrivalTime: { type: "string", description: "Arrival time (for train stops, e.g. '02:45 PM')" },
-                    intermediateStops: { type: "array", items: { type: "string" }, description: "Key intermediate stations for train journeys" },
-                    platform: { type: "string", description: "Platform number (for train stops)" },
+                    trainNumber: { type: "string", description: "Train number — REQUIRED for train stops" },
+                    trainName: { type: "string", description: "Train name — REQUIRED for train stops" },
+                    departureTime: { type: "string", description: "Departure time — REQUIRED for train stops" },
+                    arrivalTime: { type: "string", description: "Arrival time — REQUIRED for train stops" },
+                    intermediateStops: { type: "array", items: { type: "string" }, description: "Key intermediate stations — REQUIRED for train stops" },
+                    platform: { type: "string", description: "Platform number — REQUIRED for train stops" },
                   },
                   required: ["id", "time", "title", "location", "buttonLabel", "image", "lat", "lng"],
                 },
@@ -340,14 +373,21 @@ async function executeSearchAttractions(args: any, apiKey: string): Promise<stri
 }
 
 async function executeSearchTrains(args: any, apiKey: string): Promise<string> {
+  const destinations = args.destinations || (args.destination ? [args.destination] : []);
   const resp = await fetch(AI_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "google/gemini-3-flash-preview",
       messages: [
-        { role: "system", content: "Generate realistic train options between cities. Include train numbers, names, departure/arrival times, duration, intermediate stops, classes, and prices. For multi-city trips, analyze the route and determine the optimal visiting order based on train routes and intermediate stations. Return as JSON." },
-        { role: "user", content: `Trains from ${args.origin} to ${args.destination || (args.destinations || []).join(", ")}. ${args.date ? `Date: ${args.date}.` : ""} ${args.destinations ? `Multi-city destinations: ${args.destinations.join(", ")}. Determine optimal visiting order based on train route connections.` : ""}` },
+        { role: "system", content: `Generate realistic DIRECT train options between cities. Rules:
+1. Prefer DIRECT trains (no transfers). If no direct train, find the route with FEWEST transfers.
+2. NEVER route through distant transit hubs (e.g. Delhi, Mumbai) when a shorter or direct route exists.
+3. Sort results by shortest travel time first.
+4. Include: train number, train name, departure time, arrival time, duration, intermediate stops (station names), classes, and price.
+5. For multi-city trips: determine the optimal geographic visiting order that minimizes total travel distance. Return the recommended order.
+Return as JSON.` },
+        { role: "user", content: `Trains from ${args.origin} to ${destinations.join(", ")}. ${args.date ? `Date: ${args.date}.` : ""} ${destinations.length > 1 ? `Multi-city destinations: ${destinations.join(", ")}. Find the optimal visiting order that minimizes backtracking and total distance. Prefer routes where cities are along the same train line.` : "Find direct trains first. Only suggest transfers if no direct train exists."}` },
       ],
     }),
   });
