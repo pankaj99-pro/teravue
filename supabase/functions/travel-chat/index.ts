@@ -350,14 +350,21 @@ async function executeSearchAttractions(args: any, apiKey: string): Promise<stri
 }
 
 async function executeSearchTrains(args: any, apiKey: string): Promise<string> {
+  const destinations = args.destinations || (args.destination ? [args.destination] : []);
   const resp = await fetch(AI_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "google/gemini-3-flash-preview",
       messages: [
-        { role: "system", content: "Generate realistic train options between cities. Include train numbers, names, departure/arrival times, duration, intermediate stops, classes, and prices. For multi-city trips, analyze the route and determine the optimal visiting order based on train routes and intermediate stations. Return as JSON." },
-        { role: "user", content: `Trains from ${args.origin} to ${args.destination || (args.destinations || []).join(", ")}. ${args.date ? `Date: ${args.date}.` : ""} ${args.destinations ? `Multi-city destinations: ${args.destinations.join(", ")}. Determine optimal visiting order based on train route connections.` : ""}` },
+        { role: "system", content: `Generate realistic DIRECT train options between cities. Rules:
+1. Prefer DIRECT trains (no transfers). If no direct train, find the route with FEWEST transfers.
+2. NEVER route through distant transit hubs (e.g. Delhi, Mumbai) when a shorter or direct route exists.
+3. Sort results by shortest travel time first.
+4. Include: train number, train name, departure time, arrival time, duration, intermediate stops (station names), classes, and price.
+5. For multi-city trips: determine the optimal geographic visiting order that minimizes total travel distance. Return the recommended order.
+Return as JSON.` },
+        { role: "user", content: `Trains from ${args.origin} to ${destinations.join(", ")}. ${args.date ? `Date: ${args.date}.` : ""} ${destinations.length > 1 ? `Multi-city destinations: ${destinations.join(", ")}. Find the optimal visiting order that minimizes backtracking and total distance. Prefer routes where cities are along the same train line.` : "Find direct trains first. Only suggest transfers if no direct train exists."}` },
       ],
     }),
   });

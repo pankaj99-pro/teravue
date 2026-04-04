@@ -284,8 +284,9 @@ export default function Index() {
                   ) : (
                     currentItems.map((item, i) => {
                       const stop = currentDayPlan?.stops[i];
-                      const isTrain = stop?.image === "train" || !!stop?.trainNumber ||
-                        (stop?.title && /→|station|junction|express|rajdhani|shatabdi|duronto/i.test(stop.title));
+                      const isTrain = stop?.image === "train" || !!stop?.trainNumber || !!stop?.trainName ||
+                        (stop?.title && /→|→|station|junction|express|rajdhani|shatabdi|duronto|superfast|mail|intercity/i.test(stop.title)) ||
+                        (stop?.departureTime && stop?.arrivalTime && stop?.image !== "airport");
 
                       if (isTrain && stop) {
                         const parts = stop.title.split("→").map(s => s.trim());
