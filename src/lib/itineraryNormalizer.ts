@@ -218,3 +218,30 @@ export function normalizeTripPlan(plan: TripPlan): TripPlan {
     days: normalizedDays,
   };
 }
+
+/** Validate and fix lat/lng. Returns corrected {lat, lng} or nulls. */
+export function validateCoordinates(
+  lat: number | null | undefined,
+  lng: number | null | undefined
+): { lat: number | null; lng: number | null } {
+  if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return { lat: null, lng: null };
+  }
+
+  // If lat is out of range but lng is valid, try swapping
+  if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
+    const swapped = { lat: lng, lng: lat };
+    if (Math.abs(swapped.lat) <= 90 && Math.abs(swapped.lng) <= 180) {
+      console.log(`[coord-fix] Swapped lat/lng: (${lat},${lng}) → (${swapped.lat},${swapped.lng})`);
+      return swapped;
+    }
+  }
+
+  // If still out of range, null them out
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    console.warn(`[coord-fix] Invalid coordinates dropped: (${lat},${lng})`);
+    return { lat: null, lng: null };
+  }
+
+  return { lat, lng };
+}

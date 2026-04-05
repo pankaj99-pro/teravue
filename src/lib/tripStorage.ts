@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { TripPlan, DayPlan } from "@/contexts/ItineraryContext";
-import { normalizeTripPlan } from "@/lib/itineraryNormalizer";
+import { normalizeTripPlan, normalizeItineraryStop, validateCoordinates } from "@/lib/itineraryNormalizer";
 
 const extractNumber = (value: string | undefined, fallback = 0) => {
   if (!value) return fallback;
@@ -17,45 +17,32 @@ const extractInt = (value: string | undefined, fallback = 0) => {
 const toSqlDate = (value?: string): string | null => {
   if (!value) return null;
   const year = new Date().getFullYear();
-
-  // Try "Month Day" with current year first (most common from AI: "October 12")
   const withYear = new Date(`${value} ${year}`);
   if (!Number.isNaN(withYear.getTime())) {
     return withYear.toISOString().slice(0, 10);
   }
-
-  // Try as-is (might be ISO or other full format)
   const direct = new Date(value);
   if (!Number.isNaN(direct.getTime()) && direct.getFullYear() >= 2020) {
     return direct.toISOString().slice(0, 10);
   }
-
   return null;
 };
 
 const toTimestamp = (timeValue: string | undefined, dayDate: string | null): string | null => {
   if (!timeValue) return null;
-
-  // Handle "10:30 AM" style times
   const match = timeValue.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
   if (match) {
     let hours = parseInt(match[1], 10);
     const minutes = parseInt(match[2], 10);
     const meridiem = match[3]?.toUpperCase();
-
     if (meridiem === "PM" && hours < 12) hours += 12;
     if (meridiem === "AM" && hours === 12) hours = 0;
-
     const base = dayDate ?? new Date().toISOString().slice(0, 10);
     const iso = new Date(`${base}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00Z`);
-
     if (!Number.isNaN(iso.getTime())) return iso.toISOString();
   }
-
-  // Try direct parse only if it looks like a full date
   const direct = new Date(timeValue);
   if (!Number.isNaN(direct.getTime()) && direct.getFullYear() >= 2020) return direct.toISOString();
-
   return null;
 };
 
@@ -65,6 +52,54 @@ const formatDateLabel = (sqlDate: string | null): string => {
   if (Number.isNaN(d.getTime())) return sqlDate;
   return d.toLocaleDateString("en-US", { month: "long", day: "numeric" });
 };
+
+/** Nominatim geocoding fallback — free OSM geocoder (1 req/sec) */
+async function geocodeLocation(
+  locationName: string,
+  destinationCity: string
+): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const query = `${locationName}, ${destinationCity}`.trim();
+    if (!query || query === ",") return null;
+
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "TeraVue-TripPlanner/1.0" },
+    });
+
+    if (!res.ok) return null;
+    const results = await res.json();
+    if (results.length === 0) return null;
+
+    const lat = parseFloat(results[0].lat);
+    const lng = parseFloat(results[0].lon);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      console.log(`[geocode] "${query}" → (${lat}, ${lng})`);
+      return { lat, lng };
+    }
+    return null;
+  } catch (err) {
+    console.warn("[geocode] Failed:", err);
+    return null;
+  }
+}
+
+/** Rate-limit helper — wait ms */
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Coerce intermediate_stops from DB into a proper array */
+function coerceIntermediateStops(raw: unknown): string[] | undefined {
+  if (Array.isArray(raw)) return raw.length > 0 ? raw : undefined;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch {
+      // not valid JSON string
+    }
+  }
+  return undefined;
+}
 
 export async function saveTripToDatabase(plan: TripPlan, userId: string): Promise<string | null> {
   try {
@@ -103,6 +138,7 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
 
     let savedDays = 0;
     let savedActivities = 0;
+    let geocodeCount = 0;
 
     for (const day of plan.days || []) {
       const parsedDayDate = toSqlDate(day.date);
@@ -119,13 +155,34 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
         .single();
 
       if (dayError || !tripDay) {
-        console.error("Failed to save trip day:", dayError, "input:", { day_number: day.day, date: parsedDayDate, summary: day.title });
+        console.error("Failed to save trip day:", dayError);
         continue;
       }
 
       savedDays++;
 
-      for (const stop of day.stops || []) {
+      for (const rawStop of day.stops || []) {
+        // *** KEY FIX: Normalize stop before saving ***
+        const stop = normalizeItineraryStop(rawStop, savedActivities);
+
+        // Validate coordinates
+        let coords = validateCoordinates(stop.lat, stop.lng);
+
+        // Geocode if coordinates are missing/invalid
+        if (coords.lat == null || coords.lng == null) {
+          if (geocodeCount < 20) { // cap geocoding calls per trip
+            await delay(1100); // Nominatim rate limit: 1 req/sec
+            const geocoded = await geocodeLocation(
+              stop.location || stop.title,
+              plan.destination || ""
+            );
+            if (geocoded) {
+              coords = geocoded;
+              geocodeCount++;
+            }
+          }
+        }
+
         const insertData: Record<string, unknown> = {
           trip_day_id: tripDay.id,
           title: stop.title,
@@ -133,8 +190,8 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
           start_time: toTimestamp(stop.time, parsedDayDate),
           price_estimate: stop.price ? extractNumber(stop.price) : null,
           activity_type: stop.image || "activity",
-          latitude: stop.lat ?? null,
-          longitude: stop.lng ?? null,
+          latitude: coords.lat,
+          longitude: coords.lng,
         };
 
         if (stop.trainNumber) insertData.train_number = stop.trainNumber;
@@ -143,6 +200,8 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
         if (stop.departureTime) insertData.departure_time = stop.departureTime;
         if (stop.arrivalTime) insertData.arrival_time = stop.arrivalTime;
         if (stop.platform) insertData.platform = stop.platform;
+
+        console.log(`[save] Activity: "${stop.title}" | type=${insertData.activity_type} | train=${stop.trainNumber || "—"} | name=${stop.trainName || "—"} | coords=(${coords.lat},${coords.lng})`);
 
         const { error: activityError } = await supabase.from("activities").insert(insertData as any);
 
@@ -154,7 +213,7 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
       }
     }
 
-    console.log(`Trip saved: ${savedDays} days, ${savedActivities} activities`);
+    console.log(`Trip saved: ${savedDays} days, ${savedActivities} activities, ${geocodeCount} geocoded`);
     return trip.id;
   } catch (err) {
     console.error("saveTripToDatabase error:", err);
@@ -202,31 +261,38 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
         if (!a.start_time || !b.start_time) return 0;
         return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
       })
-      .map((a: any, i: number) => ({
-        id: i + 1,
-        time: a.start_time
-          ? new Date(a.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })
-          : (a.departure_time || ""),
-        title: a.title,
-        location: a.location_name || "",
-        price: a.price_estimate ? `$${Number(a.price_estimate).toFixed(2)}` : undefined,
-        priceLabel: a.price_estimate ? "estimated" : undefined,
-        buttonLabel:
-          a.activity_type === "hotel" ? "View Booking"
-          : a.activity_type === "restaurant" ? "Reserve Table"
-          : a.activity_type === "airport" || a.activity_type === "transport" ? "View Details"
-          : a.activity_type === "train" ? "View Train"
-          : "Book Ticket",
-        image: a.activity_type || "activity",
-        lat: a.latitude,
-        lng: a.longitude,
-        trainNumber: a.train_number || undefined,
-        trainName: a.train_name || undefined,
-        intermediateStops: Array.isArray(a.intermediate_stops) ? a.intermediate_stops : undefined,
-        departureTime: a.departure_time || undefined,
-        arrivalTime: a.arrival_time || undefined,
-        platform: a.platform || undefined,
-      })),
+      .map((a: any, i: number) => {
+        // Coerce intermediate_stops robustly
+        const intermediateStops = coerceIntermediateStops(a.intermediate_stops);
+
+        console.log(`[load] Activity: "${a.title}" | type=${a.activity_type} | train=${a.train_number || "—"} | name=${a.train_name || "—"} | intermediateStops=${intermediateStops?.length ?? 0}`);
+
+        return {
+          id: i + 1,
+          time: a.start_time
+            ? new Date(a.start_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })
+            : (a.departure_time || ""),
+          title: a.title,
+          location: a.location_name || "",
+          price: a.price_estimate ? `$${Number(a.price_estimate).toFixed(2)}` : undefined,
+          priceLabel: a.price_estimate ? "estimated" : undefined,
+          buttonLabel:
+            a.activity_type === "hotel" ? "View Booking"
+            : a.activity_type === "restaurant" ? "Reserve Table"
+            : a.activity_type === "airport" || a.activity_type === "transport" ? "View Details"
+            : a.activity_type === "train" ? "View Train"
+            : "Book Ticket",
+          image: a.activity_type || "activity",
+          lat: a.latitude,
+          lng: a.longitude,
+          trainNumber: a.train_number || undefined,
+          trainName: a.train_name || undefined,
+          intermediateStops,
+          departureTime: a.departure_time || undefined,
+          arrivalTime: a.arrival_time || undefined,
+          platform: a.platform || undefined,
+        };
+      }),
   }));
 
   const flagMapRaw: Record<string, string> = {
@@ -244,12 +310,10 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
     Tanzania: "🇹🇿", "South Africa": "🇿🇦", Cuba: "🇨🇺", Jamaica: "🇯🇲",
     "Costa Rica": "🇨🇷", Chile: "🇨🇱", Ecuador: "🇪🇨", Russia: "🇷🇺",
   };
-  // Case-insensitive flag lookup
   const flagMap = new Map(Object.entries(flagMapRaw).map(([k, v]) => [k.toLowerCase(), v]));
   const countryKey = (trip.destination_country || "").toLowerCase();
   const countryFlag = flagMap.get(countryKey) || "🌍";
 
-  // Derive dateRange from day dates
   let dateRange = "";
   if (trip.start_date && trip.end_date) {
     dateRange = `${new Date(trip.start_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}–${new Date(trip.end_date).toLocaleDateString("en-US", { day: "numeric" })}`;
