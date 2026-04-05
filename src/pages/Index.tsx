@@ -284,9 +284,18 @@ export default function Index() {
                   ) : (
                     currentItems.map((item, i) => {
                       const stop = currentDayPlan?.stops[i];
-                      const isTrain = stop?.image === "train" || !!stop?.trainNumber || !!stop?.trainName ||
-                        (stop?.title && /→|→|station|junction|express|rajdhani|shatabdi|duronto|superfast|mail|intercity/i.test(stop.title)) ||
-                        (stop?.departureTime && stop?.arrivalTime && stop?.image !== "airport");
+                      const title = stop?.title || "";
+                      const hasTrainHints = /station|junction|express|rajdhani|shatabdi|duronto|superfast|mail|intercity|rail|train/i.test(title);
+                      const hasRoute = /→|->|\bto\b/i.test(title);
+                      const looksLikeFlight = /\bflight\b|\bair\b|airport|airline/i.test(title);
+                      const hasTrainTimePair = Boolean(stop?.departureTime || stop?.arrivalTime);
+                      const isTrain =
+                        stop?.image === "train" ||
+                        !!stop?.trainNumber ||
+                        !!stop?.trainName ||
+                        (hasTrainTimePair && hasRoute && !looksLikeFlight) ||
+                        (hasTrainHints && hasRoute && !looksLikeFlight) ||
+                        (stop?.image === "transport" && hasTrainHints);
 
                       if (isTrain && stop) {
                         const parts = stop.title.split("→").map(s => s.trim());

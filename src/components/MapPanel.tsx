@@ -194,10 +194,10 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         attributionControl={false}
         style={{ background: "hsl(220, 15%, 92%)" }}
       >
-        {/* Medium-dark map theme */}
+        {/* Clean satellite-like map theme */}
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+          url="https://tiles.stadiamaps.com/tiles/alidade_satellite/{z}/{x}/{y}{r}.jpg"
+          attribution="&copy; Stadia Maps &copy; OpenMapTiles &copy; OpenStreetMap contributors"
         />
 
         {/* Render polylines with transport-specific styling */}
@@ -260,17 +260,19 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         {dayTitle || "No day selected"}
       </div>
 
-      {/* Route loading indicator */}
+      {/* Route loading overlay */}
       <AnimatePresence>
         {routesLoading && stops.length > 1 && (
           <motion.div
-            className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 bg-card/95 backdrop-blur-md border border-border rounded-xl px-4 py-2.5 shadow-lg"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            className="absolute inset-0 z-[1200] flex items-center justify-center bg-black/20 backdrop-blur-[1px]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           >
-            <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            <span className="text-xs text-muted-foreground font-medium">Loading routes…</span>
+            <div className="flex items-center gap-2 bg-card/95 backdrop-blur-md border border-border rounded-xl px-4 py-2.5 shadow-lg">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              <span className="text-xs text-muted-foreground font-medium">Loading routes…</span>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

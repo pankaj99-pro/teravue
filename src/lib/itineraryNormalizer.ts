@@ -1,6 +1,6 @@
 import type { DayPlan, ItineraryStop, TripPlan } from "@/contexts/ItineraryContext";
 
-const TRAIN_HINT_REGEX = /\b(train|express|rajdhani|shatabdi|duronto|rail|station|junction|jn)\b/i;
+const TRAIN_HINT_REGEX = /\b(train|express|rajdhani|shatabdi|duronto|rail|station|junction|jn|intercity|superfast|mail)\b/i;
 const ROUTE_SPLIT_REGEX = /\s*(?:→|->| to )\s*/i;
 const TRAIN_NUMBER_REGEX = /\b\d{4,6}\b/;
 
@@ -142,10 +142,14 @@ export function normalizeItineraryStop(stop: ItineraryStop, index: number): Itin
   const title = (stop.title || "").trim() || `Stop ${index + 1}`;
   const location = (stop.location || "").trim() || title;
 
+  const hasRouteArrow = /→|->|\bto\b/i.test(title);
+  const hasTrainTimePair = Boolean(stop.departureTime || stop.arrivalTime);
+
   const looksTrain =
     stop.image === "train" ||
     Boolean(stop.trainNumber || stop.trainName) ||
-    TRAIN_HINT_REGEX.test(title);
+    TRAIN_HINT_REGEX.test(title) ||
+    (hasRouteArrow && hasTrainTimePair);
 
   const image = looksTrain ? "train" : (stop.image || "activity");
   const trainNumber = looksTrain ? (stop.trainNumber || title.match(TRAIN_NUMBER_REGEX)?.[0] || undefined) : undefined;

@@ -1,0 +1,12 @@
+{
+  "name": "teravue-scraper",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
+    "playwright": "^1.47.0"
+  }
+}
