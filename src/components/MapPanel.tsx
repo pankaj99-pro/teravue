@@ -194,10 +194,10 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
         attributionControl={false}
         style={{ background: "hsl(220, 15%, 92%)" }}
       >
-        {/* Clean satellite-like map theme */}
+        {/* Free OpenStreetMap tiles */}
         <TileLayer
-          url="https://tiles.stadiamaps.com/tiles/alidade_satellite/{z}/{x}/{y}{r}.jpg"
-          attribution="&copy; Stadia Maps &copy; OpenMapTiles &copy; OpenStreetMap contributors"
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution="&copy; OpenStreetMap contributors"
         />
 
         {/* Render polylines with transport-specific styling */}
