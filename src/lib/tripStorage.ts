@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { TripPlan, DayPlan } from "@/contexts/ItineraryContext";
 import { normalizeTripPlan, normalizeItineraryStop, validateCoordinates } from "@/lib/itineraryNormalizer";
+import { geocoder } from "@/lib/geocoder";
 
 const extractNumber = (value: string | undefined, fallback = 0) => {
   if (!value) return fallback;
@@ -18,13 +19,9 @@ const toSqlDate = (value?: string): string | null => {
   if (!value) return null;
   const year = new Date().getFullYear();
   const withYear = new Date(`${value} ${year}`);
-  if (!Number.isNaN(withYear.getTime())) {
-    return withYear.toISOString().slice(0, 10);
-  }
+  if (!Number.isNaN(withYear.getTime())) return withYear.toISOString().slice(0, 10);
   const direct = new Date(value);
-  if (!Number.isNaN(direct.getTime()) && direct.getFullYear() >= 2020) {
-    return direct.toISOString().slice(0, 10);
-  }
+  if (!Number.isNaN(direct.getTime()) && direct.getFullYear() >= 2020) return direct.toISOString().slice(0, 10);
   return null;
 };
 
@@ -53,38 +50,7 @@ const formatDateLabel = (sqlDate: string | null): string => {
   return d.toLocaleDateString("en-US", { month: "long", day: "numeric" });
 };
 
-/** Nominatim geocoding fallback — free OSM geocoder (1 req/sec) */
-async function geocodeLocation(
-  locationName: string,
-  destinationCity: string
-): Promise<{ lat: number; lng: number } | null> {
-  try {
-    const query = `${locationName}, ${destinationCity}`.trim();
-    if (!query || query === ",") return null;
-
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": "TeraVue-TripPlanner/1.0" },
-    });
-
-    if (!res.ok) return null;
-    const results = await res.json();
-    if (results.length === 0) return null;
-
-    const lat = parseFloat(results[0].lat);
-    const lng = parseFloat(results[0].lon);
-    if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      console.log(`[geocode] "${query}" → (${lat}, ${lng})`);
-      return { lat, lng };
-    }
-    return null;
-  } catch (err) {
-    console.warn("[geocode] Failed:", err);
-    return null;
-  }
-}
-
-/** Rate-limit helper — wait ms */
+/** Rate-limit helper */
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Coerce intermediate_stops from DB into a proper array */
@@ -94,16 +60,14 @@ function coerceIntermediateStops(raw: unknown): string[] | undefined {
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch {
-      // not valid JSON string
-    }
+    } catch { /* not valid JSON */ }
   }
   return undefined;
 }
 
 export async function saveTripToDatabase(plan: TripPlan, userId: string): Promise<string | null> {
   try {
-    // Delete any existing incomplete trips for this destination to avoid duplicates
+    // Delete existing AI trips for this destination
     const { data: existing } = await supabase
       .from("trips")
       .select("id")
@@ -138,7 +102,8 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
 
     let savedDays = 0;
     let savedActivities = 0;
-    let geocodeCount = 0;
+    let geocodedCount = 0;
+    let aiAcceptedCount = 0;
 
     for (const day of plan.days || []) {
       const parsedDayDate = toSqlDate(day.date);
@@ -158,29 +123,43 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
         console.error("Failed to save trip day:", dayError);
         continue;
       }
-
       savedDays++;
 
       for (const rawStop of day.stops || []) {
-        // *** KEY FIX: Normalize stop before saving ***
+        // Normalize stop (infers train detection, meal times, etc.)
         const stop = normalizeItineraryStop(rawStop, savedActivities);
 
-        // Validate coordinates
+        // Validate basic coord bounds
         let coords = validateCoordinates(stop.lat, stop.lng);
 
-        // Geocode if coordinates are missing/invalid
-        if (coords.lat == null || coords.lng == null) {
-          if (geocodeCount < 20) { // cap geocoding calls per trip
-            await delay(1100); // Nominatim rate limit: 1 req/sec
-            const geocoded = await geocodeLocation(
-              stop.location || stop.title,
-              plan.destination || ""
+        // Geocode: verify AI coords or resolve missing ones
+        const geocodeResult = await geocoder.geocodeStop(
+          {
+            stopTitle: stop.title,
+            stopLocation: stop.location || "",
+            destinationCity: plan.destination || "",
+            country: plan.country || "",
+          },
+          coords.lat,
+          coords.lng,
+          stop.image
+        );
+
+        if (geocodeResult) {
+          if (geocodeResult.source === "ai") {
+            coords = { lat: geocodeResult.lat, lng: geocodeResult.lng };
+            aiAcceptedCount++;
+          } else {
+            console.log(
+              `[geocode] "${stop.title}" corrected: (${coords.lat},${coords.lng}) → (${geocodeResult.lat},${geocodeResult.lng}) [${geocodeResult.source}, confidence=${geocodeResult.confidence.toFixed(2)}]`
             );
-            if (geocoded) {
-              coords = geocoded;
-              geocodeCount++;
-            }
+            coords = { lat: geocodeResult.lat, lng: geocodeResult.lng };
+            geocodedCount++;
           }
+          // Rate limit for Nominatim
+          if (geocodeResult.source === "nominatim") await delay(1100);
+        } else if (coords.lat == null || coords.lng == null) {
+          console.warn(`[geocode] No coords for "${stop.title}" — geocoding failed, flagging`);
         }
 
         const insertData: Record<string, unknown> = {
@@ -201,7 +180,7 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
         if (stop.arrivalTime) insertData.arrival_time = stop.arrivalTime;
         if (stop.platform) insertData.platform = stop.platform;
 
-        console.log(`[save] Activity: "${stop.title}" | type=${insertData.activity_type} | train=${stop.trainNumber || "—"} | name=${stop.trainName || "—"} | coords=(${coords.lat},${coords.lng})`);
+        console.log(`[save] "${stop.title}" | type=${insertData.activity_type} | train=${stop.trainNumber || "—"} | coords=(${coords.lat},${coords.lng})`);
 
         const { error: activityError } = await supabase.from("activities").insert(insertData as any);
 
@@ -213,7 +192,7 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
       }
     }
 
-    console.log(`Trip saved: ${savedDays} days, ${savedActivities} activities, ${geocodeCount} geocoded`);
+    console.log(`Trip saved: ${savedDays} days, ${savedActivities} activities | ${geocodedCount} geocoded, ${aiAcceptedCount} AI-accepted`);
     return trip.id;
   } catch (err) {
     console.error("saveTripToDatabase error:", err);
@@ -262,10 +241,9 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
         return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
       })
       .map((a: any, i: number) => {
-        // Coerce intermediate_stops robustly
         const intermediateStops = coerceIntermediateStops(a.intermediate_stops);
 
-        console.log(`[load] Activity: "${a.title}" | type=${a.activity_type} | train=${a.train_number || "—"} | name=${a.train_name || "—"} | intermediateStops=${intermediateStops?.length ?? 0}`);
+        console.log(`[load] "${a.title}" | type=${a.activity_type} | train=${a.train_number || "—"} | intermediateStops=${intermediateStops?.length ?? 0}`);
 
         return {
           id: i + 1,
