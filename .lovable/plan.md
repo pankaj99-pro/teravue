@@ -1,66 +1,67 @@
 
 
-# Fix: Itinerary Quality — Train Details, Meal Timing, Route Optimization
+# Fix: Train Details Lost After Refresh + Geocoding Validation
 
-## Problem Summary
+## Two Problems
 
-The generated itinerary has several critical issues:
+**Problem 1: Train data not persisted correctly**
+`saveTripToDatabase` writes raw stops to DB. The normalizer (`normalizeItineraryStop`) runs on the in-memory plan for display but the **save path bypasses it**. So `activity_type` stays as `"transport"` or `"airport"`, and `train_number`/`train_name` stay null if the AI didn't explicitly set them. After refresh, `loadFullTrip` reads these nulls back, and `isTrain` fails.
 
-1. **Train details missing from itinerary cards** — Stops with `image: "airport"` are used for what should be train segments. The AI returns flights even when user says "via Train." The `isTrain` detection in `Index.tsx` only checks for `image === "train"`, so airport-tagged stops never render as `TrainScheduleCard`.
+Additionally, `intermediate_stops` stored as a JSON string (not native array) causes `Array.isArray()` to return false on reload.
 
-2. **Backtracking** — The route goes Jabalpur → Delhi → Vrindavan → Agra → Delhi → Jabalpur (Delhi visited twice). Should go Jabalpur → Agra → Vrindavan → Jabalpur (or similar forward-only path).
-
-3. **Meal timing loopholes** — The normalizer only fixes meals with explicit keywords (breakfast/lunch/dinner). Generic "Local restaurant" stops slip through uncorrected.
-
-4. **Day compression** — Day 1 packs a flight + 3-hour drive + hotel + dinner into tight windows with no buffer.
+**Problem 2: AI-hallucinated lat/lng with no validation**
+Coordinates come directly from the AI with no geocoding verification. Wrong, swapped, or imprecise coordinates persist permanently.
 
 ---
 
 ## Plan
 
-### Step 1: Harden the system prompt in `travel-chat/index.ts`
+### Step 1: Normalize stops before saving to DB (`tripStorage.ts`)
 
-- Add an explicit rule: **When user says "via Train", NEVER use flights. All inter-city segments must use `image: "train"` with full train metadata.**
-- Add rule: **Transit hubs (like Delhi) must NOT appear as overnight stops unless the user explicitly requests it.** Direct train routes should be preferred.
-- Strengthen anti-backtracking: "If city A can be reached directly from origin, do NOT route through city B first."
-- Add explicit time-buffer rules: "Day 1 arrival day should have max 3 stops after reaching hotel. Allow 30-min buffer between consecutive stops."
-- Add rule for meal detection: "Any restaurant/dining stop must have its time validated against meal windows regardless of title wording."
+In `saveTripToDatabase`, run each stop through `normalizeItineraryStop()` before building the insert payload. This ensures:
+- `activity_type` is set to `"train"` when the stop matches train patterns
+- `train_number` and `train_name` are inferred from titles
+- `departure_time` and `arrival_time` are populated
 
-### Step 2: Fix train detection in `Index.tsx`
-
-Current detection:
-```typescript
-const isTrain = stop?.image === "train" || !!stop?.trainNumber ||
-  (stop?.title && /→|station|junction|express|rajdhani|shatabdi|duronto/i.test(stop.title));
+```text
+Current:  raw stop → insert to DB
+Fixed:    raw stop → normalizeItineraryStop() → insert to DB
 ```
 
-Add detection for flight segments that should be trains (when title contains "→" with city names and user selected train mode). Also detect `image: "airport"` stops whose title contains "Flight:" and flag them — but more importantly, the AI should never produce these when user says "via Train."
+### Step 2: Coerce `intermediate_stops` on load (`tripStorage.ts`)
 
-### Step 3: Enhance `itineraryNormalizer.ts`
+In `loadFullTrip`, when reading `intermediate_stops`:
+- If it's a string, `JSON.parse()` it
+- If already an array, use directly
+- Otherwise default to undefined
 
-- Add meal-time normalization for **any** stop with `image === "restaurant"`, not just those with "breakfast/lunch/dinner" in the title.
-- Infer meal type from time-of-day if title doesn't contain a keyword (e.g., a restaurant stop at 1 PM → treat as lunch, validate within 12–3 PM window).
-- Add a post-normalization pass that checks chronological ordering within each day and fixes overlapping times.
+### Step 3: Add coordinate validation guardrails (`itineraryNormalizer.ts`)
 
-### Step 4: Add route optimization hint to `create_itinerary` tool description
+Without adding a paid geocoder (Nominatim is free but rate-limited), add basic sanity checks:
+- If `|lat| > 90` or `|lng| > 180`, attempt swap; if still invalid, null them out
+- If coordinates are identical for consecutive non-hotel stops, flag/offset slightly
+- Add a `validateCoordinates` function that checks lat/lng are within valid ranges
 
-Update the tool description to include: "BEFORE generating days, compute the geographic shortest path through all destination cities from origin. Visit cities in that order. Never use a transit city (like Delhi) as an overnight stop unless it's a destination itself."
+### Step 4: Add Nominatim geocoding fallback (`tripStorage.ts`)
 
-### Step 5: Strengthen `search_trains` tool executor
+Create a lightweight `geocodeLocation` function using free OpenStreetMap Nominatim API:
+- Called during save, only for stops where lat/lng are missing or fail validation
+- Uses `location_name + destination_city` as search query
+- Rate-limited (1 req/sec per Nominatim policy) with a simple delay
+- Results overwrite the AI-provided coordinates before DB insert
 
-The current train search executor uses a generic AI prompt. Enhance it to:
-- Explicitly request **direct train routes** (no transit cities)
-- Request trains sorted by shortest travel time
-- Include the instruction: "If no direct train exists, find the route with fewest transfers"
+This runs server-side during save so it's a one-time cost, not on every load.
+
+### Step 5: Debug logging
+
+Add `console.log` in save path showing what `activity_type` and train fields are being written, and in load path showing what comes back.
 
 ---
 
-## Technical Details
+## Files to Modify
 
-### Files to modify:
-1. **`supabase/functions/travel-chat/index.ts`** — System prompt, `search_trains` executor prompt, `create_itinerary` tool description
-2. **`src/lib/itineraryNormalizer.ts`** — Time-based meal inference for restaurant stops, chronological ordering pass
-3. **`src/pages/Index.tsx`** — Minor: improve train detection fallback
+1. **`src/lib/tripStorage.ts`** — Import `normalizeItineraryStop`, normalize before save, coerce `intermediate_stops` on load, add Nominatim geocoding fallback, add debug logs
+2. **`src/lib/itineraryNormalizer.ts`** — Add `validateCoordinates` function exported for use in save path
 
-### No database changes needed.
+No database changes needed.
 
