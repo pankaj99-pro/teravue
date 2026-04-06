@@ -1,8 +1,9 @@
 import type { DayPlan, ItineraryStop, TripPlan } from "@/contexts/ItineraryContext";
 
-const TRAIN_HINT_REGEX = /\b(train|express|rajdhani|shatabdi|duronto|rail|station|junction|jn|intercity|superfast|mail)\b/i;
+const TRAIN_HINT_REGEX = /\b(train|express|rajdhani|shatabdi|duronto|rail|station|junction|jn|intercity|superfast|mail|vande\s?bharat|garib\s?rath|humsafar|tejas|gatimaan|cantt|railway|platform)\b/i;
 const ROUTE_SPLIT_REGEX = /\s*(?:→|->| to )\s*/i;
 const TRAIN_NUMBER_REGEX = /\b\d{4,6}\b/;
+const FLIGHT_HINT_REGEX = /\b(flight|air|airline|airport|airways|aviation|boarding|terminal)\b/i;
 
 const COUNTRY_FLAGS: Record<string, string> = {
   india: "🇮🇳",
@@ -145,14 +146,27 @@ export function normalizeItineraryStop(stop: ItineraryStop, index: number): Itin
   const hasRouteArrow = /→|->|\bto\b/i.test(title);
   const hasTrainTimePair = Boolean(stop.departureTime || stop.arrivalTime);
 
+  // Check both title AND location for train hints
+  const titleHasTrain = TRAIN_HINT_REGEX.test(title);
+  const locationHasTrain = TRAIN_HINT_REGEX.test(location);
+  const looksLikeFlight = FLIGHT_HINT_REGEX.test(title) || FLIGHT_HINT_REGEX.test(location);
+
   const looksTrain =
     stop.image === "train" ||
     Boolean(stop.trainNumber || stop.trainName) ||
-    TRAIN_HINT_REGEX.test(title) ||
-    (hasRouteArrow && hasTrainTimePair);
+    titleHasTrain ||
+    locationHasTrain ||
+    (hasRouteArrow && hasTrainTimePair && !looksLikeFlight) ||
+    (hasRouteArrow && (titleHasTrain || locationHasTrain) && !looksLikeFlight);
+
+  if (looksTrain) {
+    console.log(`[normalizer] Detected train stop: "${title}" (location: "${location}")`);
+  }
 
   const image = looksTrain ? "train" : (stop.image || "activity");
-  const trainNumber = looksTrain ? (stop.trainNumber || title.match(TRAIN_NUMBER_REGEX)?.[0] || undefined) : undefined;
+  const trainNumber = looksTrain
+    ? (stop.trainNumber || title.match(TRAIN_NUMBER_REGEX)?.[0] || location.match(TRAIN_NUMBER_REGEX)?.[0] || undefined)
+    : undefined;
   const trainName = looksTrain ? (stop.trainName || inferTrainName(title, trainNumber)) : undefined;
   const departureTime = looksTrain ? (stop.departureTime || stop.time || undefined) : stop.departureTime;
 
