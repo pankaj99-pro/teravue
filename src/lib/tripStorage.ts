@@ -151,13 +151,13 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
             aiAcceptedCount++;
           } else {
             console.log(
-              `[geocode] "${stop.title}" corrected: (${coords.lat},${coords.lng}) → (${geocodeResult.lat},${geocodeResult.lng}) [${geocodeResult.source}, confidence=${geocodeResult.confidence.toFixed(2)}]`
+              `[geocode] "${stop.title}" corrected: (${coords.lat},${coords.lng}) → (${geocodeResult.lat},${geocodeResult.lng}) [${geocodeResult.source}, conf=${geocodeResult.confidence.toFixed(2)}]`
             );
             coords = { lat: geocodeResult.lat, lng: geocodeResult.lng };
             geocodedCount++;
           }
-          // Rate limit for Nominatim
-          if (geocodeResult.source === "nominatim") await delay(1100);
+          // Rate limit between geocode calls
+          await delay(geocodeResult.source === "nominatim" ? 1100 : 250);
         } else if (coords.lat == null || coords.lng == null) {
           console.warn(`[geocode] No coords for "${stop.title}" — geocoding failed, flagging`);
         }
