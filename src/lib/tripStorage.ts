@@ -50,10 +50,8 @@ const formatDateLabel = (sqlDate: string | null): string => {
   return d.toLocaleDateString("en-US", { month: "long", day: "numeric" });
 };
 
-/** Rate-limit helper */
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Coerce intermediate_stops from DB into a proper array */
 function coerceIntermediateStops(raw: unknown): string[] | undefined {
   if (Array.isArray(raw)) return raw.length > 0 ? raw : undefined;
   if (typeof raw === "string") {
@@ -125,9 +123,10 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
       }
       savedDays++;
 
-      for (const rawStop of day.stops || []) {
-        // Normalize stop (infers train detection, meal times, etc.)
-        const stop = normalizeItineraryStop(rawStop, savedActivities);
+      for (let stopIdx = 0; stopIdx < (day.stops || []).length; stopIdx++) {
+        const rawStop = day.stops[stopIdx];
+        // Normalize stop — this detects train stops, infers train fields, etc.
+        const stop = normalizeItineraryStop(rawStop, stopIdx);
 
         // Validate basic coord bounds
         let coords = validateCoordinates(stop.lat, stop.lng);
@@ -156,12 +155,12 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
             coords = { lat: geocodeResult.lat, lng: geocodeResult.lng };
             geocodedCount++;
           }
-          // Rate limit between geocode calls
           await delay(geocodeResult.source === "nominatim" ? 1100 : 250);
         } else if (coords.lat == null || coords.lng == null) {
           console.warn(`[geocode] No coords for "${stop.title}" — geocoding failed, flagging`);
         }
 
+        // Build the insert payload — ALWAYS include train fields from normalized stop
         const insertData: Record<string, unknown> = {
           trip_day_id: tripDay.id,
           title: stop.title,
@@ -171,16 +170,18 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
           activity_type: stop.image || "activity",
           latitude: coords.lat,
           longitude: coords.lng,
+          // Always persist train fields (null if not a train)
+          train_number: stop.trainNumber || null,
+          train_name: stop.trainName || null,
+          departure_time: stop.departureTime || null,
+          arrival_time: stop.arrivalTime || null,
+          platform: stop.platform || null,
+          intermediate_stops: stop.intermediateStops?.length ? stop.intermediateStops : [],
         };
 
-        if (stop.trainNumber) insertData.train_number = stop.trainNumber;
-        if (stop.trainName) insertData.train_name = stop.trainName;
-        if (stop.intermediateStops?.length) insertData.intermediate_stops = stop.intermediateStops;
-        if (stop.departureTime) insertData.departure_time = stop.departureTime;
-        if (stop.arrivalTime) insertData.arrival_time = stop.arrivalTime;
-        if (stop.platform) insertData.platform = stop.platform;
-
-        console.log(`[save] "${stop.title}" | type=${insertData.activity_type} | train=${stop.trainNumber || "—"} | coords=(${coords.lat},${coords.lng})`);
+        console.log(
+          `[save] "${stop.title}" | type=${insertData.activity_type} | train=${stop.trainNumber || "—"} | trainName=${stop.trainName || "—"} | dep=${stop.departureTime || "—"} | arr=${stop.arrivalTime || "—"} | coords=(${coords.lat},${coords.lng})`
+        );
 
         const { error: activityError } = await supabase.from("activities").insert(insertData as any);
 
@@ -243,7 +244,9 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
       .map((a: any, i: number) => {
         const intermediateStops = coerceIntermediateStops(a.intermediate_stops);
 
-        console.log(`[load] "${a.title}" | type=${a.activity_type} | train=${a.train_number || "—"} | intermediateStops=${intermediateStops?.length ?? 0}`);
+        console.log(
+          `[load] "${a.title}" | type=${a.activity_type} | train_number=${a.train_number || "—"} | train_name=${a.train_name || "—"} | dep=${a.departure_time || "—"} | arr=${a.arrival_time || "—"} | intermediateStops=${intermediateStops?.length ?? 0}`
+        );
 
         return {
           id: i + 1,
@@ -263,6 +266,7 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
           image: a.activity_type || "activity",
           lat: a.latitude,
           lng: a.longitude,
+          // Explicitly map ALL train fields from DB
           trainNumber: a.train_number || undefined,
           trainName: a.train_name || undefined,
           intermediateStops,
@@ -313,6 +317,8 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
     days: planDays,
   };
 
+  // normalizeTripPlan re-runs the normalizer on each stop,
+  // which re-detects train stops from titles even if DB had wrong activity_type
   return normalizeTripPlan(rawPlan);
 }
 
