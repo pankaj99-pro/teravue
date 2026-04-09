@@ -1,9 +1,5 @@
 /**
- * High-precision geocoding service with LocationIQ primary + Nominatim fallback.
- *
- * Architecture:
- *  1. LocationIQ (via edge function) — primary, high-accuracy
- *  2. Nominatim (direct) — fallback, free
+ * Geocoding service using Nominatim (OpenStreetMap).
  *
  * Multi-layer validation:
  *  - Name validation (token similarity)
@@ -13,8 +9,6 @@
  *  - Distance from city center
  */
 
-import { supabase } from "@/integrations/supabase/client";
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface GeocodedResult {
@@ -23,7 +17,7 @@ export interface GeocodedResult {
   displayName: string;
   /** 0–1 score: 1 = perfect match */
   confidence: number;
-  source: "locationiq" | "nominatim" | "ai" | "none";
+  source: "nominatim" | "ai" | "none";
 }
 
 export interface GeocodeQuery {
@@ -56,7 +50,6 @@ const MIN_CONFIDENCE = 0.30;
 const MAX_CITY_DISTANCE_KM = 300;
 const IMPORTANCE_THRESHOLD = 0.35;
 
-/** Accepted place types */
 const VALID_TYPES = new Set([
   "tourism", "place_of_worship", "attraction", "landmark", "museum",
   "monument", "temple", "park", "garden", "archaeological_site",
@@ -64,10 +57,9 @@ const VALID_TYPES = new Set([
   "amenity", "building", "shop", "leisure", "historic",
 ]);
 
-/** Accepted classes */
 const VALID_CLASSES = new Set([
   "tourism", "amenity", "building", "shop", "leisure", "historic",
-  "place", "natural", "highway", // highway for named ghats/paths
+  "place", "natural", "highway",
 ]);
 
 /** Types to skip geocoding entirely */
@@ -118,14 +110,13 @@ function validateResult(
   let score = result.importance ?? 0.3;
   const reasons: string[] = [];
 
-  // 1. NAME VALIDATION — token similarity
+  // 1. NAME VALIDATION
   const nameSim = tokenSimilarity(query.stopTitle, result.display_name);
   if (nameSim >= 0.8) {
     score += 0.25;
   } else if (nameSim >= 0.5) {
     score += 0.15;
   } else if (nameSim < 0.3) {
-    // Check if title words appear individually
     const titleWords = query.stopTitle.toLowerCase().split(/\s+/).filter(w => w.length > 2);
     const foundCount = titleWords.filter(w => dn.includes(w)).length;
     if (titleWords.length > 0 && foundCount / titleWords.length < 0.5) {
@@ -134,11 +125,10 @@ function validateResult(
     }
   }
 
-  // 2. GEOGRAPHIC VALIDATION — city/state/country
+  // 2. GEOGRAPHIC VALIDATION
   const addr = result.address;
   if (addr) {
     const resultCity = (addr.city || addr.town || addr.village || "").toLowerCase();
-    const resultState = (addr.state || "").toLowerCase();
     const resultCountry = (addr.country || "").toLowerCase();
     const expectedCity = query.destinationCity.toLowerCase().split(/[&,]/)[0].trim();
     const expectedCountry = query.country.toLowerCase();
@@ -152,11 +142,10 @@ function validateResult(
 
     if (resultCity && (resultCity.includes(expectedCity) || expectedCity.includes(resultCity))) {
       score += 0.15;
-    } else if (resultState && dn.includes(expectedCity)) {
+    } else if (dn.includes(expectedCity)) {
       score += 0.1;
     }
   } else {
-    // No address details — use display_name
     if (query.country && dn.includes(query.country.toLowerCase())) score += 0.1;
     if (query.destinationCity) {
       const city = query.destinationCity.toLowerCase().split(/[&,]/)[0].trim();
@@ -193,7 +182,7 @@ function validateResult(
     } else if (dist > 50) {
       score -= 0.1;
     } else if (dist < 20) {
-      score += 0.1; // Close to city = bonus
+      score += 0.1;
     }
   }
 
@@ -206,31 +195,7 @@ function validateResult(
   };
 }
 
-// ─── Providers ───────────────────────────────────────────────────────────────
-
-async function queryLocationIQ(query: string): Promise<GeoResult[]> {
-  try {
-    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-    if (!projectId) {
-      console.warn("[geocoder] No VITE_SUPABASE_PROJECT_ID — skipping LocationIQ");
-      return [];
-    }
-
-    const { data, error } = await supabase.functions.invoke("geocode", {
-      body: { query },
-    });
-
-    if (error) {
-      console.warn("[geocoder] LocationIQ edge function error:", error);
-      return [];
-    }
-
-    return data?.results || [];
-  } catch (err) {
-    console.warn("[geocoder] LocationIQ call failed:", err);
-    return [];
-  }
-}
+// ─── Nominatim Provider ─────────────────────────────────────────────────────
 
 async function queryNominatim(query: string): Promise<GeoResult[]> {
   try {
@@ -257,12 +222,8 @@ async function getCityCenter(city: string, country: string): Promise<{ lat: numb
   const key = `${city}|${country}`.toLowerCase();
   if (cityCenterCache.has(key)) return cityCenterCache.get(key)!;
 
-  // Try LocationIQ first, then Nominatim
   const cityQuery = `${city}, ${country}`;
-  let results = await queryLocationIQ(cityQuery);
-  if (results.length === 0) {
-    results = await queryNominatim(cityQuery);
-  }
+  const results = await queryNominatim(cityQuery);
 
   if (results.length > 0) {
     const center = { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) };
@@ -297,10 +258,7 @@ function areAICoordsReasonable(
 function normalizeInput(query: GeocodeQuery): string[] {
   const { stopTitle, stopLocation, destinationCity, country } = query;
 
-  // Build multiple query variants (most specific → least specific)
   const parts = [stopTitle, stopLocation, destinationCity, country].filter(Boolean);
-
-  // Deduplicate
   const seen = new Set<string>();
   const deduped = parts.filter(p => {
     const lower = p.toLowerCase().trim();
@@ -313,12 +271,11 @@ function normalizeInput(query: GeocodeQuery): string[] {
   const titleCityCountry = [stopTitle, destinationCity, country].filter(Boolean);
   const titleCountry = [stopTitle, country].filter(Boolean);
 
-  // Return queries in priority order
   return [
     fullQuery,
     titleCityCountry.join(", "),
     titleCountry.join(", "),
-  ].filter((q, i, arr) => arr.indexOf(q) === i); // unique
+  ].filter((q, i, arr) => arr.indexOf(q) === i);
 }
 
 // ─── Pick Best Result ────────────────────────────────────────────────────────
@@ -326,21 +283,18 @@ function normalizeInput(query: GeocodeQuery): string[] {
 function pickBest(
   results: GeoResult[],
   query: GeocodeQuery,
-  cityCenter: { lat: number; lng: number } | null,
-  source: "locationiq" | "nominatim"
+  cityCenter: { lat: number; lng: number } | null
 ): GeocodedResult | null {
   const scored = results.map(r => {
     const v = validateResult(r, query, cityCenter);
     return { result: r, ...v };
   });
 
-  // Sort by score desc
   scored.sort((a, b) => b.score - a.score);
 
-  // Log validation details
   scored.slice(0, 3).forEach((s, i) => {
     console.log(
-      `[geocoder] ${source} #${i + 1}: "${s.result.display_name.slice(0, 60)}" | ` +
+      `[geocoder] nominatim #${i + 1}: "${s.result.display_name.slice(0, 60)}" | ` +
       `score=${s.score.toFixed(2)} valid=${s.valid} ${s.reason ? `(${s.reason})` : ""}`
     );
   });
@@ -350,7 +304,6 @@ function pickBest(
     return null;
   }
 
-  // Ambiguity check: if top 2 have same score but different locations, reject
   if (scored.length >= 2 && scored[1].valid) {
     const dist = haversineKm(
       parseFloat(scored[0].result.lat), parseFloat(scored[0].result.lon),
@@ -358,13 +311,12 @@ function pickBest(
     );
     if (Math.abs(scored[0].score - scored[1].score) < 0.05 && dist > 50) {
       console.warn(`[geocoder] Ambiguous results for "${query.stopTitle}" — top 2 are ${dist.toFixed(0)}km apart`);
-      // Still use the top result but lower confidence
       return {
         lat: parseFloat(best.result.lat),
         lng: parseFloat(best.result.lon),
         displayName: best.result.display_name,
         confidence: best.score * 0.8,
-        source,
+        source: "nominatim",
       };
     }
   }
@@ -373,7 +325,7 @@ function pickBest(
   const lng = parseFloat(best.result.lon);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
-  return { lat, lng, displayName: best.result.display_name, confidence: best.score, source };
+  return { lat, lng, displayName: best.result.display_name, confidence: best.score, source: "nominatim" };
 }
 
 // ─── Main Geocoder ───────────────────────────────────────────────────────────
@@ -406,43 +358,20 @@ async function geocodeStop(
   ) {
     let lat = existingLat;
     let lng = existingLng;
-    // Swap fix
     if (Math.abs(lat) > 90 && Math.abs(lng) <= 90) {
       console.log(`[geocoder] Swapping lat/lng: (${lat},${lng}) → (${lng},${lat})`);
       [lat, lng] = [lng, lat];
-    }
-
-    if (areAICoordsReasonable(lat, lng, cityCenter)) {
-      // AI coords pass basic validation — but still try to get better coords
-      // Only skip geocoding if we're confident the AI coords are precise
-      // For now, always try to improve with real geocoding
     }
   }
 
   // Build normalized queries
   const queries = normalizeInput(query);
 
-  // STEP 1: Try LocationIQ (primary)
-  for (const q of queries) {
-    const results = await queryLocationIQ(q);
-    if (results.length > 0) {
-      const best = pickBest(results, query, cityCenter, "locationiq");
-      if (best && best.confidence >= MIN_CONFIDENCE) {
-        console.log(
-          `[geocoder] ✅ LocationIQ resolved "${query.stopTitle}" → (${best.lat},${best.lng}) [conf=${best.confidence.toFixed(2)}]`
-        );
-        geocodeCache.set(cacheKey, best);
-        return best;
-      }
-    }
-  }
-
-  // STEP 2: Fallback to Nominatim
-  console.log(`[geocoder] LocationIQ miss — falling back to Nominatim for "${query.stopTitle}"`);
+  // Try Nominatim with cascading queries
   for (const q of queries) {
     const results = await queryNominatim(q);
     if (results.length > 0) {
-      const best = pickBest(results, query, cityCenter, "nominatim");
+      const best = pickBest(results, query, cityCenter);
       if (best && best.confidence >= MIN_CONFIDENCE) {
         console.log(
           `[geocoder] ✅ Nominatim resolved "${query.stopTitle}" → (${best.lat},${best.lng}) [conf=${best.confidence.toFixed(2)}]`
@@ -455,7 +384,7 @@ async function geocodeStop(
     await new Promise(r => setTimeout(r, 1100));
   }
 
-  // STEP 3: If all geocoding failed, check if AI coords are at least passable
+  // If all geocoding failed, check if AI coords are at least passable
   if (
     existingLat != null && existingLng != null &&
     Number.isFinite(existingLat) && Number.isFinite(existingLng)
