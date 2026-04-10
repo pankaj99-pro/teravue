@@ -1,6 +1,6 @@
 import type { DayPlan, ItineraryStop, TripPlan } from "@/contexts/ItineraryContext";
 
-const TRAIN_HINT_REGEX = /\b(train|express|rajdhani|shatabdi|duronto|rail|station|junction|jn|intercity|superfast|mail|vande\s?bharat|garib\s?rath|humsafar|tejas|gatimaan|cantt|railway|platform)\b/i;
+const TRAIN_HINT_REGEX = /\b(train|express|rajdhani|shatabdi|duronto|rail|station|junction|jn|intercity|superfast|mail|vande\s?bharat|garib\s?rath|humsafar|tejas|gatimaan|cantt|railway|platform|terminus)\b/i;
 const ROUTE_SPLIT_REGEX = /\s*(?:→|->| to )\s*/i;
 const TRAIN_NUMBER_REGEX = /\b\d{4,6}\b/;
 const FLIGHT_HINT_REGEX = /\b(flight|air|airline|airport|airways|aviation|boarding|terminal)\b/i;
