@@ -252,10 +252,16 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
       })
       .map((a: any, i: number) => {
         const intermediateStops = coerceIntermediateStops(a.intermediate_stops);
+        const isTrain = a.activity_type === "train" || !!a.train_number || !!a.train_name;
 
-        console.log(
-          `[load] "${a.title}" | type=${a.activity_type} | train_number=${a.train_number || "—"} | train_name=${a.train_name || "—"} | dep=${a.departure_time || "—"} | arr=${a.arrival_time || "—"} | intermediateStops=${intermediateStops?.length ?? 0}`
-        );
+        if (isTrain) {
+          console.log(
+            `[load][TRAIN] "${a.title}" | type=${a.activity_type} | trainNo=${a.train_number || "—"} | trainName=${a.train_name || "—"} | dep=${a.departure_time || "—"} | arr=${a.arrival_time || "—"} | platform=${a.platform || "—"} | intermediateStops=${intermediateStops?.length ?? 0}`
+          );
+        }
+
+        // For train stops, use "train" as image even if DB has a different activity_type
+        const image = isTrain ? "train" : (a.activity_type || "activity");
 
         return {
           id: i + 1,
@@ -267,15 +273,15 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
           price: a.price_estimate ? `$${Number(a.price_estimate).toFixed(2)}` : undefined,
           priceLabel: a.price_estimate ? "estimated" : undefined,
           buttonLabel:
-            a.activity_type === "hotel" ? "View Booking"
+            isTrain ? "View Train"
+            : a.activity_type === "hotel" ? "View Booking"
             : a.activity_type === "restaurant" ? "Reserve Table"
             : a.activity_type === "airport" || a.activity_type === "transport" ? "View Details"
-            : a.activity_type === "train" ? "View Train"
             : "Book Ticket",
-          image: a.activity_type || "activity",
+          image,
           lat: a.latitude,
           lng: a.longitude,
-          // Explicitly map ALL train fields from DB
+          // Explicitly map ALL train fields from DB — use undefined (not null) for missing values
           trainNumber: a.train_number || undefined,
           trainName: a.train_name || undefined,
           intermediateStops,
