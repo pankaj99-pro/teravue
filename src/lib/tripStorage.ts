@@ -161,6 +161,7 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
         }
 
         // Build the insert payload — ALWAYS include train fields from normalized stop
+        const isTrain = stop.image === "train";
         const insertData: Record<string, unknown> = {
           trip_day_id: tripDay.id,
           title: stop.title,
@@ -176,12 +177,20 @@ export async function saveTripToDatabase(plan: TripPlan, userId: string): Promis
           departure_time: stop.departureTime || null,
           arrival_time: stop.arrivalTime || null,
           platform: stop.platform || null,
-          intermediate_stops: stop.intermediateStops?.length ? stop.intermediateStops : [],
+          intermediate_stops: Array.isArray(stop.intermediateStops) && stop.intermediateStops.length > 0
+            ? stop.intermediateStops
+            : [],
         };
 
-        console.log(
-          `[save] "${stop.title}" | type=${insertData.activity_type} | train=${stop.trainNumber || "—"} | trainName=${stop.trainName || "—"} | dep=${stop.departureTime || "—"} | arr=${stop.arrivalTime || "—"} | coords=(${coords.lat},${coords.lng})`
-        );
+        if (isTrain) {
+          console.log(
+            `[save][TRAIN] "${stop.title}" | trainNo=${stop.trainNumber || "—"} | trainName=${stop.trainName || "—"} | dep=${stop.departureTime || "—"} | arr=${stop.arrivalTime || "—"} | platform=${stop.platform || "—"} | stops=${stop.intermediateStops?.length ?? 0} | coords=(${coords.lat},${coords.lng})`
+          );
+        } else {
+          console.log(
+            `[save] "${stop.title}" | type=${insertData.activity_type} | coords=(${coords.lat},${coords.lng})`
+          );
+        }
 
         const { error: activityError } = await supabase.from("activities").insert(insertData as any);
 
