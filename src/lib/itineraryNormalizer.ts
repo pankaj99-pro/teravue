@@ -169,6 +169,9 @@ export function normalizeItineraryStop(stop: ItineraryStop, index: number): Itin
     : undefined;
   const trainName = looksTrain ? (stop.trainName || inferTrainName(title, trainNumber)) : undefined;
   const departureTime = looksTrain ? (stop.departureTime || stop.time || undefined) : stop.departureTime;
+  const arrivalTime = looksTrain ? (stop.arrivalTime || undefined) : undefined;
+  const platform = looksTrain ? (stop.platform || undefined) : undefined;
+  const intermediateStops = looksTrain ? (stop.intermediateStops || undefined) : undefined;
 
   const time = looksTrain
     ? (departureTime || stop.time || "")
@@ -184,6 +187,9 @@ export function normalizeItineraryStop(stop: ItineraryStop, index: number): Itin
     trainNumber,
     trainName,
     departureTime,
+    arrivalTime,
+    platform,
+    intermediateStops,
     time,
   };
 }
