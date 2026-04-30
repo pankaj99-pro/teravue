@@ -266,3 +266,114 @@ export function validateCoordinates(
 
   return { lat, lng };
 }
+
+// ─── Train Arrival Hydration ─────────────────────────────────────────────────
+// When AI returns a "Depart X for Y" train stop without a matching arrival
+// stop at Y, we synthesize one (with geocoded coords) so the train route line
+// can render on the map.
+
+const DEPART_REGEX = /\b(?:depart(?:ure)?|board|leave)\b.*?\b(?:for|to|→|->)\s+([A-Za-z][A-Za-z\s.'-]{2,})/i;
+const ARROW_DEST_REGEX = /(?:→|->|\bto\b)\s+([A-Za-z][A-Za-z\s.'-]{2,})/i;
+
+const extractDepartureDestination = (stop: ItineraryStop): string | null => {
+  const title = stop.title || "";
+  const m1 = title.match(DEPART_REGEX);
+  if (m1?.[1]) return m1[1].replace(/\(.*$/, "").trim().split(/\s+(?:via|—|-|,)/i)[0].trim();
+  const m2 = title.match(ARROW_DEST_REGEX);
+  if (m2?.[1]) return m2[1].replace(/\(.*$/, "").trim().split(/\s+(?:via|—|-|,)/i)[0].trim();
+  return null;
+};
+
+const stopMentionsCity = (stop: ItineraryStop, city: string): boolean => {
+  const c = city.toLowerCase();
+  return (
+    (stop.title || "").toLowerCase().includes(c) ||
+    (stop.location || "").toLowerCase().includes(c)
+  );
+};
+
+const hasValidCoords = (s: ItineraryStop) =>
+  Number.isFinite(s.lat) && Number.isFinite(s.lng) && Math.abs(s.lat!) <= 90 && Math.abs(s.lng!) <= 180;
+
+/**
+ * Walks all train stops; for any "Depart X for Y" train stop whose subsequent
+ * stop is NOT an arrival at Y with valid coords, injects a synthetic
+ * "Arrive Y" train stop with geocoded coordinates.
+ */
+export async function hydrateMissingTrainArrivals(plan: TripPlan): Promise<TripPlan> {
+  const country = plan.country || "";
+  const days = plan.days.map((d) => ({ ...d, stops: [...d.stops] }));
+
+  type Ptr = { dayIdx: number; stopIdx: number };
+  const all: { stop: ItineraryStop; ptr: Ptr }[] = [];
+  days.forEach((d, di) => d.stops.forEach((s, si) => all.push({ stop: s, ptr: { dayIdx: di, stopIdx: si } })));
+
+  const insertions: { dayIdx: number; afterStopIdx: number; stop: ItineraryStop }[] = [];
+
+  for (let i = 0; i < all.length; i++) {
+    const { stop } = all[i];
+    if (stop.image !== "train") continue;
+
+    const dest = extractDepartureDestination(stop);
+    if (!dest) continue;
+
+    const next = all[i + 1];
+    if (next && stopMentionsCity(next.stop, dest) && hasValidCoords(next.stop)) {
+      continue; // already have a matching arrival nearby
+    }
+
+    console.log(`[hydrate] Missing arrival for train "${stop.title}" → resolving "${dest}"`);
+    try {
+      const result = await geocoder.geocodeStop(
+        { stopTitle: `${dest} Railway Station`, stopLocation: dest, destinationCity: dest, country },
+      );
+      let lat: number | null = null;
+      let lng: number | null = null;
+      if (result) { lat = result.lat; lng = result.lng; }
+      else {
+        const center = await geocoder.getCityCenter(dest, country);
+        if (center) { lat = center.lat; lng = center.lng; }
+      }
+      if (lat == null || lng == null) {
+        console.warn(`[hydrate] Could not geocode "${dest}" — skipping arrival injection`);
+        continue;
+      }
+
+      const synthetic: ItineraryStop = {
+        id: 9000 + i,
+        time: stop.arrivalTime || "",
+        title: `Arrive ${dest}`,
+        location: `${dest} Railway Station`,
+        buttonLabel: "View Train",
+        image: "train",
+        lat,
+        lng,
+        trainNumber: stop.trainNumber,
+        trainName: stop.trainName,
+        intermediateStops: stop.intermediateStops,
+        departureTime: stop.departureTime,
+        arrivalTime: stop.arrivalTime,
+        platform: stop.platform,
+      };
+      insertions.push({ dayIdx: all[i].ptr.dayIdx, afterStopIdx: all[i].ptr.stopIdx, stop: synthetic });
+      console.log(`[hydrate] ✅ Injected synthetic arrival "${synthetic.title}" at (${lat},${lng})`);
+    } catch (err) {
+      console.error(`[hydrate] geocode failed for "${dest}":`, err);
+    }
+  }
+
+  const grouped = new Map<number, typeof insertions>();
+  insertions.forEach(ins => {
+    const list = grouped.get(ins.dayIdx) || [];
+    list.push(ins);
+    grouped.set(ins.dayIdx, list);
+  });
+  for (const [dayIdx, list] of grouped) {
+    list.sort((a, b) => b.afterStopIdx - a.afterStopIdx);
+    for (const ins of list) {
+      days[dayIdx].stops.splice(ins.afterStopIdx + 1, 0, ins.stop);
+    }
+  }
+
+  return { ...plan, days };
+}
