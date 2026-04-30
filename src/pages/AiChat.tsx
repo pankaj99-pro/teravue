@@ -25,7 +25,7 @@ import { useItinerary } from "@/contexts/ItineraryContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { streamTravelChat, ChatMessage } from "@/lib/streamChat";
 import { saveTripToDatabase } from "@/lib/tripStorage";
-import { normalizeTripPlan } from "@/lib/itineraryNormalizer";
+import { normalizeTripPlan, hydrateMissingTrainArrivals } from "@/lib/itineraryNormalizer";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -291,17 +291,19 @@ export default function AiChat() {
 
           if (name === "create_itinerary") {
             const normalizedPlan = normalizeTripPlan(args);
+            // Inject synthetic arrival stops for one-sided "Depart X for Y" train legs
+            const hydratedPlan = await hydrateMissingTrainArrivals(normalizedPlan);
             let savedTripId: string | undefined;
 
             if (user) {
-              const tripId = await saveTripToDatabase(normalizedPlan, user.id);
+              const tripId = await saveTripToDatabase(hydratedPlan, user.id);
               if (tripId) {
                 savedTripId = tripId;
-                normalizedPlan.tripId = tripId;
+                hydratedPlan.tripId = tripId;
               }
             }
 
-            setTripPlan(normalizedPlan);
+            setTripPlan(hydratedPlan);
             toast.success(savedTripId
               ? "✨ Itinerary generated and saved! View it on the Itinerary page."
               : "✨ Itinerary generated! Sign in to save your trips."

@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { TripPlan, DayPlan } from "@/contexts/ItineraryContext";
-import { normalizeTripPlan, normalizeItineraryStop, validateCoordinates } from "@/lib/itineraryNormalizer";
+import { normalizeTripPlan, normalizeItineraryStop, validateCoordinates, hydrateMissingTrainArrivals } from "@/lib/itineraryNormalizer";
 import { geocoder } from "@/lib/geocoder";
 
 const extractNumber = (value: string | undefined, fallback = 0) => {
@@ -334,7 +334,10 @@ export async function loadFullTrip(tripId: string): Promise<TripPlan | null> {
 
   // normalizeTripPlan re-runs the normalizer on each stop,
   // which re-detects train stops from titles even if DB had wrong activity_type
-  return normalizeTripPlan(rawPlan);
+  const normalized = normalizeTripPlan(rawPlan);
+  // Inject synthetic arrival stops for one-sided "Depart X for Y" train legs
+  // so the train route line can render even when AI omitted the arrival.
+  return await hydrateMissingTrainArrivals(normalized);
 }
 
 export async function deleteTrip(tripId: string) {
