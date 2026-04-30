@@ -1,4 +1,5 @@
 import type { DayPlan, ItineraryStop, TripPlan } from "@/contexts/ItineraryContext";
+import { geocoder } from "@/lib/geocoder";
 
 const TRAIN_HINT_REGEX = /\b(train|express|rajdhani|shatabdi|duronto|rail|station|junction|jn|intercity|superfast|mail|vande\s?bharat|garib\s?rath|humsafar|tejas|gatimaan|cantt|railway|platform|terminus)\b/i;
 const ROUTE_SPLIT_REGEX = /\s*(?:→|->| to )\s*/i;
