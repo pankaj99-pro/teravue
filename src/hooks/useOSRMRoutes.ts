@@ -42,15 +42,15 @@ export function useOSRMRoutes(
           return null;
         }
 
-        // Check if this is a flight segment
+        // Flight only when BOTH endpoints are airports/flights — otherwise a leg
+        // from an airport to a hotel would incorrectly render as a flight arc.
         const fromType = activityTypes?.[from.id] ?? "";
         const toType = activityTypes?.[to.id] ?? "";
-        const isFlight =
-          fromType === "flight" || toType === "flight" ||
-          from.label.toLowerCase().includes("airport") ||
-          to.label.toLowerCase().includes("airport") ||
-          from.label.toLowerCase().includes("flight") ||
-          to.label.toLowerCase().includes("flight");
+        const fromLabel = from.label.toLowerCase();
+        const toLabel = to.label.toLowerCase();
+        const fromIsFlight = fromType === "flight" || fromLabel.includes("airport") || fromLabel.includes("flight");
+        const toIsFlight = toType === "flight" || toLabel.includes("airport") || toLabel.includes("flight");
+        const isFlight = fromIsFlight && toIsFlight;
 
         if (isFlight) {
           return {
