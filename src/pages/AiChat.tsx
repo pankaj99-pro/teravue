@@ -25,7 +25,7 @@ import { useItinerary } from "@/contexts/ItineraryContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { streamTravelChat, ChatMessage } from "@/lib/streamChat";
 import { saveTripToDatabase } from "@/lib/tripStorage";
-import { normalizeTripPlan } from "@/lib/itineraryNormalizer";
+import { normalizeTripPlan, hydrateMissingTrainArrivals } from "@/lib/itineraryNormalizer";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
