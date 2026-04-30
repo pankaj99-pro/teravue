@@ -134,9 +134,11 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
   // (e.g. station → station for train, airport → airport for flight). A leg from
   // a station to a hotel is a road segment (taxi/bike/walk), not a train route.
   const segmentTypes = useMemo(() => {
-    const TRAIN_REGEX = /station|junction|express|rajdhani|shatabdi|duronto|terminus|\bjn\b|railway/i;
-    const isTrainStop = (s: MapStop) =>
-      s.activityType === "train" || !!s.trainNumber || !!s.trainName || TRAIN_REGEX.test(s.label);
+    const TRAIN_REGEX = /station|junction|express|rajdhani|shatabdi|duronto|terminus|\bjn\b|\bbct\b|\bcsmt\b|railway/i;
+    // "Strong" = explicit train metadata (number/name/type). "Weak" = label-only hint.
+    const hasTrainMeta = (s: MapStop) =>
+      s.activityType === "train" || !!s.trainNumber || !!s.trainName;
+    const labelLooksTrain = (s: MapStop) => TRAIN_REGEX.test(s.label);
     const isFlightStop = (s: MapStop) => {
       const l = s.label.toLowerCase();
       return s.activityType === "flight" || l.includes("airport") || l.includes("flight");
@@ -144,8 +146,14 @@ export function MapPanel({ activeStop, customStops, dayTitle, routeSegments, sel
 
     return stops.slice(0, -1).map((from, i) => {
       const to = stops[i + 1];
-      // Both endpoints must be of the same long-haul mode for the segment to inherit it.
-      const isTrain = isTrainStop(from) && isTrainStop(to);
+      // A segment is a train leg if EITHER endpoint carries explicit train metadata
+      // (train_number/name/type). This covers cases where the AI only attaches the
+      // train card to one side (e.g. "Mumbai Central → Bhopal" where Bhopal is just
+      // a city). We still require both endpoints to NOT be flights.
+      const fromTrain = hasTrainMeta(from);
+      const toTrain = hasTrainMeta(to);
+      const bothLabelTrain = labelLooksTrain(from) && labelLooksTrain(to);
+      const isTrain = (fromTrain || toTrain || bothLabelTrain) && !(isFlightStop(from) && isFlightStop(to));
       const isFlight = !isTrain && isFlightStop(from) && isFlightStop(to);
       const transport: SegmentTransport = isTrain ? "train" : isFlight ? "flight" : selectedMode;
       return { from, to, isTrain, isFlight, transport };
